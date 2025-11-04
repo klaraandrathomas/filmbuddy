@@ -1,0 +1,11 @@
+# Created by venv; see https://docs.python.org/3/library/venv.html
+# .gitignore
+venv/
+__pycache__/
+*.pyc
+.DS_Store
+.env
+*.srt
+*.jsonl
+*.safetensors
+*.pt
