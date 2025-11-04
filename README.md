@@ -1,26 +1,11 @@
-# FilmBuddy
+# FilmBuddy 
+An interactive, time-aware film companion chatbot.
 
-## Quick Start
+## Structure
+- `scripts/build_time_aware_corpus.py`: parses `.srt` subtitle files into timestamped JSONL chunks.
+- `corpus/`: contains the processed subtitle corpora.
+- `server/main.py`: FastAPI backend providing `/ask` endpoint for RAG retrieval.
 
-### Prerequisites
-
-- Python
-
-### Installation
-
+## Run locally
 ```bash
-# Clone repository 
-git clone 
-
-# Install dependencies
-pip install fastapi "uvicorn[standard]" sentence-transformers numpy pydantic ujson
-```
-
-### Run Pipeline Test
-
-```bash
-# Generate test data
-python scripts/build_time_aware_corpus.py
-
-# backend
 uvicorn server.main:app --reload --port 8000
