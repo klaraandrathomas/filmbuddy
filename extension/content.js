@@ -31,7 +31,7 @@ function findVideoElement() {
 
   for (const selector of selectors) {
     const video = document.querySelector(selector);
-    if (video && !video.paused !== undefined) {
+    if (video && video.currentTime !== undefined) {
       return video;
     }
   }
@@ -65,14 +65,26 @@ function getCurrentTimestamp() {
   const video = findVideoElement();
 
   if (video) {
+    const timestamp = video.currentTime || 0;
+    const duration = video.duration || 0;
+    const paused = video.paused;
+    
+    console.log('[FilmBuddy] Video detected:', {
+      timestamp: timestamp.toFixed(2),
+      duration: duration.toFixed(2),
+      paused: paused,
+      dimensions: `${video.clientWidth}x${video.clientHeight}`
+    });
+    
     return {
-      timestamp: video.currentTime,
-      duration: video.duration || 0,
-      paused: video.paused,
+      timestamp: timestamp,
+      duration: duration,
+      paused: paused,
       found: true
     };
   }
 
+  console.warn('[FilmBuddy] No video element found on page');
   return {
     timestamp: 0,
     duration: 0,

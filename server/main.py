@@ -15,7 +15,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # ---------- Config ----------
-CORPUS_PATH = os.environ.get("FILMBUDDY_CORPUS", "corpus/la_la_land_chunks.jsonl")
+CORPUS_DIR = os.environ.get("FILMBUDDY_CORPUS_DIR", "corpus")
 EMB_MODEL = os.environ.get("FILMBUDDY_EMB_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
 TOPK_DEFAULT = int(os.environ.get("FILMBUDDY_TOPK", "6"))
 MAX_CANDIDATES = int(os.environ.get("FILMBUDDY_MAXCANDS", "128"))  # search breadth before filtering
@@ -23,7 +23,7 @@ EPS = 1e-6  # tolerance for float comparisons
 STRICT_START_GATE = os.environ.get("FILMBUDDY_STRICT_START_GATE", "0") == "1"
 
 # Temporal boosting configuration
-TEMPORAL_WEIGHT = float(os.environ.get("FILMBUDDY_TEMPORAL_WEIGHT", "0.5"))  # Weight for temporal proximity (0-1)
+TEMPORAL_WEIGHT = float(os.environ.get("FILMBUDDY_TEMPORAL_WEIGHT", "0.2"))  # Weight for temporal proximity (0-1)
 TEMPORAL_DECAY = float(os.environ.get("FILMBUDDY_TEMPORAL_DECAY", "180"))  # Decay window in seconds (3 min)
 
 # Cue type scoring penalties (reduce score for less useful content types)
@@ -34,13 +34,24 @@ CUE_TYPE_WEIGHTS = {
     "metadata": 0.1,      # Almost ignore metadata
 }
 
-# OpenAI Configuration
+# LLM Configuration (supports both OpenAI and LiteLLM)
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
+LITELLM_API_KEY = os.environ.get("LITELLM_API_KEY")
+LITELLM_API_BASE = os.environ.get("LITELLM_API_BASE")
 OPENAI_MODEL = os.environ.get("FILMBUDDY_LLM_MODEL", "gpt-4o")
-LLM_ENABLED = OPENAI_API_KEY is not None
 
-# Initialize OpenAI client
-openai_client = OpenAI(api_key=OPENAI_API_KEY) if LLM_ENABLED else None
+# Determine which API key to use
+api_key = LITELLM_API_KEY or OPENAI_API_KEY
+LLM_ENABLED = api_key is not None
+
+# Initialize OpenAI client (works with LiteLLM base_url too)
+if LLM_ENABLED:
+    if LITELLM_API_BASE:
+        openai_client = OpenAI(api_key=api_key, base_url=LITELLM_API_BASE)
+    else:
+        openai_client = OpenAI(api_key=api_key)
+else:
+    openai_client = None
 
 # ---------- Data structures ----------
 class AskRequest(BaseModel):
@@ -86,8 +97,8 @@ app.add_middleware(
 )
 
 # ---------- Load corpus & build embeddings ----------
-payloads: List[Dict[str, Any]] = []
-embeddings: np.ndarray = None
+# Store data per film
+film_data = {}  # film_id -> {"payloads": [...], "embeddings": np.ndarray}
 model: SentenceTransformer = None
 
 def load_jsonl(path: str) -> List[Dict[str, Any]]:
@@ -111,39 +122,159 @@ def normalize_rows(x: np.ndarray) -> np.ndarray:
 
 @app.on_event("startup")
 def startup():
-    global payloads, embeddings, model
-    if not os.path.exists(CORPUS_PATH):
-        raise RuntimeError(f"Corpus JSONL not found at {CORPUS_PATH}")
-    payloads = load_jsonl(CORPUS_PATH)
-    texts = [r["text"] for r in payloads]
+    global film_data, model
+    
+    if not os.path.exists(CORPUS_DIR):
+        raise RuntimeError(f"Corpus directory not found at {CORPUS_DIR}")
+    
+    # Load embedding model once
     model = SentenceTransformer(EMB_MODEL)
-    embs = model.encode(texts, batch_size=64, show_progress_bar=True, normalize_embeddings=True)
-    embeddings = embs.astype("float32")
-    # Optional: sanity check order
-    for i, r in enumerate(payloads):
-        if not (isinstance(r.get("t_start"), (int, float)) and isinstance(r.get("t_end"), (int, float))):
-            raise RuntimeError(f"Record {i} missing t_start/t_end")
-    print(f"[startup] Loaded {len(payloads)} chunks from {CORPUS_PATH}. Embedding dim={embeddings.shape[1]}")
+    
+    # Find all corpus files
+    corpus_files = [f for f in os.listdir(CORPUS_DIR) if f.endswith('_chunks.jsonl')]
+    
+    if not corpus_files:
+        raise RuntimeError(f"No corpus files found in {CORPUS_DIR}")
+    
+    print(f"[startup] Found {len(corpus_files)} corpus file(s)")
+    
+    # Load each film's corpus
+    for corpus_file in corpus_files:
+        corpus_path = os.path.join(CORPUS_DIR, corpus_file)
+        payloads = load_jsonl(corpus_path)
+        
+        if not payloads:
+            print(f"[startup] Warning: {corpus_file} is empty, skipping")
+            continue
+        
+        # Get film_id from first record
+        film_id = payloads[0].get("film_id")
+        if not film_id:
+            print(f"[startup] Warning: {corpus_file} has no film_id, skipping")
+            continue
+        
+        # Validate records
+        for i, r in enumerate(payloads):
+            if not (isinstance(r.get("t_start"), (int, float)) and isinstance(r.get("t_end"), (int, float))):
+                raise RuntimeError(f"Record {i} in {corpus_file} missing t_start/t_end")
+        
+        # Create embeddings for this film
+        texts = [r["text"] for r in payloads]
+        print(f"[startup] Encoding {len(texts)} chunks for {film_id}...")
+        embs = model.encode(texts, batch_size=64, show_progress_bar=True, normalize_embeddings=True)
+        embeddings = embs.astype("float32")
+        
+        # Store film data
+        film_data[film_id] = {
+            "payloads": payloads,
+            "embeddings": embeddings
+        }
+        
+        print(f"[startup] ✓ Loaded {len(payloads)} chunks for '{film_id}' (dim={embeddings.shape[1]})")
+    
+    print(f"[startup] Total films loaded: {len(film_data)}")
+    print(f"[startup] Available film_ids: {list(film_data.keys())}")
+    
     if LLM_ENABLED:
         print(f"[startup] LLM generation enabled with model: {OPENAI_MODEL}")
+        if LITELLM_API_KEY:
+            print(f"[startup] Using LiteLLM with base: {LITELLM_API_BASE}")
+            print(f"[startup] LiteLLM API key: {LITELLM_API_KEY[:7]}...{LITELLM_API_KEY[-4:]}")
+        elif OPENAI_API_KEY:
+            print(f"[startup] Using OpenAI API key: sk-...{OPENAI_API_KEY[-4:]}")
     else:
-        print("[startup] LLM generation disabled (no OPENAI_API_KEY set)")
+        print("[startup] LLM generation disabled (no OPENAI_API_KEY or LITELLM_API_KEY set)")
 
 # ---------- LLM Generation ----------
-def generate_response(query: str, hits: List[Hit], t_now: float, spoiler_mode: str) -> str:
-    """Generate a conversational response using GPT-4o based on retrieved chunks."""
-    if not LLM_ENABLED or not hits:
+def get_temporal_context(film_id: str, t_now: float, window_seconds: float = 60) -> Dict[str, Any]:
+    """Get recent dialogue and scene context around current timestamp."""
+    if film_id not in film_data:
+        return {"recent_dialogue": [], "characters_present": set()}
+    
+    payloads = film_data[film_id]["payloads"]
+    
+    # Get chunks from the last 60 seconds (or custom window)
+    recent_chunks = []
+    for chunk in payloads:
+        # Only include chunks that END within our window before current time
+        if t_now - window_seconds <= chunk["t_end"] <= t_now:
+            recent_chunks.append(chunk)
+    
+    # Sort by timestamp
+    recent_chunks.sort(key=lambda x: x["t_start"])
+    
+    # Extract character names from dialogue patterns
+    # Look for patterns like "Character:" or "- Character -" or capitalized names at start
+    characters_present = set()
+    for chunk in recent_chunks[-10:]:  # Focus on last 10 chunks
+        text = chunk.get("text", "")
+        # Simple heuristic: extract capitalized words that might be names
+        # This is basic - could be enhanced with NER or character list
+        if chunk.get("cue_type") == "dialogue":
+            # Look for dialogue attribution patterns
+            lines = text.split('\n')
+            for line in lines:
+                # Skip stage directions in parentheses
+                if line.strip().startswith('(') or line.strip().startswith('<i>('):
+                    continue
+                # Add actual dialogue as indication someone is speaking
+                if line.strip() and not line.strip().startswith('-'):
+                    characters_present.add("multiple characters")  # Generic placeholder
+    
+    return {
+        "recent_dialogue": recent_chunks[-10:],  # Last 10 chunks
+        "characters_present": characters_present
+    }
+
+
+def generate_response(query: str, hits: List[Hit], t_now: float, spoiler_mode: str, film_id: str = None) -> str:
+    """Generate a conversational response using LLM based on retrieved chunks and temporal context."""
+    if not LLM_ENABLED:
+        print("[LLM] LLM_ENABLED is False - returning None")
         return None
+    
+    if not hits:
+        print("[LLM] No hits provided - returning None")
+        return None
+    
+    if not openai_client:
+        print("[LLM] OpenAI client is None - returning error")
+        return "⚠️ OpenAI client not initialized. Check server logs."
 
-    # Build context from retrieved chunks
-    context_parts = []
-    for i, hit in enumerate(hits[:5], 1):  # Use top 5 hits for context
-        timestamp = f"[{hit.t_start:.0f}s - {hit.t_end:.0f}s]"
-        speakers = f" ({', '.join(hit.speakers)})" if hit.speakers else ""
-        cue_info = f" [{hit.cue_type}]" if hit.cue_type else ""
-        context_parts.append(f"{i}. {timestamp}{speakers}{cue_info}\n{hit.text}")
-
-    context = "\n\n".join(context_parts)
+    # Get temporal context (recent scene info)
+    temporal_ctx = get_temporal_context(film_id, t_now) if film_id else {"recent_dialogue": [], "characters_present": set()}
+    
+    # Build CURRENT SCENE CONTEXT (last 30-60 seconds of dialogue)
+    current_scene_parts = []
+    for chunk in temporal_ctx["recent_dialogue"][-8:]:  # Last 8 chunks from recent scene
+        ts = chunk.get("t_start", 0)
+        mins, secs = int(ts // 60), int(ts % 60)
+        time_fmt = f"{mins}:{secs:02d}"
+        text = chunk.get("text", "")
+        cue_type = chunk.get("cue_type", "")
+        
+        # Format differently for dialogue vs non-verbal
+        if cue_type == "dialogue":
+            current_scene_parts.append(f"[{time_fmt}] {text}")
+        elif cue_type == "nonverbal" and len(text) < 50:
+            current_scene_parts.append(f"[{time_fmt}] ({text})")
+    
+    current_scene_context = "\n".join(current_scene_parts) if current_scene_parts else "No recent dialogue available."
+    
+    # Build SEMANTIC SEARCH RESULTS (RAG hits)
+    relevant_moments_parts = []
+    for i, hit in enumerate(hits[:6], 1):  # Use top 6 hits
+        mins, secs = int(hit.t_start // 60), int(hit.t_start % 60)
+        time_fmt = f"{mins}:{secs:02d}"
+        
+        # Check if this is from the current scene (within last 60s)
+        is_current = (t_now - 60 <= hit.t_end <= t_now)
+        marker = "📍 CURRENT SCENE" if is_current else ""
+        
+        cue_info = f"[{hit.cue_type}]" if hit.cue_type else ""
+        relevant_moments_parts.append(f"{i}. [{time_fmt}] {cue_info} {marker}\n{hit.text}")
+    
+    relevant_moments = "\n\n".join(relevant_moments_parts)
 
     # Format current time for context
     minutes = int(t_now // 60)
@@ -156,22 +287,33 @@ Current playback time: {time_str} ({t_now:.0f} seconds into the film)
 Spoiler mode: {spoiler_mode}
 
 IMPORTANT RULES:
-1. Only use information from the provided context - do not make up details
-2. {"Since spoiler mode is OFF, do NOT reveal any plot points, character fates, or events that happen after the current timestamp" if spoiler_mode.lower() == "off" else "Spoiler mode is ON, so you may discuss the full film"}
-3. Be conversational and engaging, like a friend watching the movie with the viewer
-4. Reference specific moments with timestamps when helpful (e.g., "Around 2:30...")
-5. If the context doesn't contain enough information to answer, say so honestly
-6. Keep responses concise but informative (2-4 sentences typically)"""
+1. Use BOTH the current scene context AND relevant moments to answer questions
+2. For vague references like "that guy" or "her" - use the CURRENT SCENE CONTEXT to identify who's on screen
+3. The "Current Scene" shows what just happened (last 30-60 seconds) - this is what the viewer is seeing NOW
+4. The "Relevant Moments" are semantically similar content that might provide additional context
+5. {"Since spoiler mode is OFF, do NOT reveal any plot points, character fates, or events that happen after the current timestamp" if spoiler_mode.lower() == "off" else "Spoiler mode is ON, so you may discuss the full film"}
+6. Be conversational and engaging, like a friend watching the movie with the viewer
+7. If you can't identify who/what they're referring to, say so honestly - don't guess
+8. Keep responses concise but informative (2-4 sentences typically)"""
 
-    user_prompt = f"""Context from the movie (timestamps shown):
+    user_prompt = f"""CURRENT SCENE (what's happening right now):
+{current_scene_context}
 
-{context}
+---
+
+RELEVANT MOMENTS (semantic search results from the film):
+{relevant_moments}
+
+---
 
 User's question: {query}
 
-Please provide a helpful, conversational response based on the context above."""
+Please answer the question using the context above. Pay special attention to the CURRENT SCENE section for identifying "who" or "what" the user is referring to."""
 
     try:
+        print(f"[LLM] Calling OpenAI API with model: {OPENAI_MODEL}")
+        print(f"[LLM] System prompt length: {len(system_prompt)}, User prompt length: {len(user_prompt)}")
+        
         response = openai_client.chat.completions.create(
             model=OPENAI_MODEL,
             messages=[
@@ -181,14 +323,42 @@ Please provide a helpful, conversational response based on the context above."""
             temperature=0.7,
             max_tokens=500
         )
-        return response.choices[0].message.content
+        
+        answer = response.choices[0].message.content
+        print(f"[LLM] Success! Generated response length: {len(answer)}")
+        return answer
+        
     except Exception as e:
-        print(f"[LLM Error] {e}")
-        return f"I encountered an error generating a response. Here are the relevant movie moments I found."
+        error_msg = str(e)
+        error_type = type(e).__name__
+        print(f"[LLM Error] {error_type}: {error_msg}")
+        
+        # Return a more informative error message
+        if "api_key" in error_msg.lower() or "authentication" in error_msg.lower() or "401" in error_msg:
+            return "⚠️ OpenAI API key issue. Please check your .env file has a valid OPENAI_API_KEY."
+        elif "rate" in error_msg.lower() or "quota" in error_msg.lower() or "429" in error_msg:
+            return "⚠️ OpenAI API rate limit or quota exceeded. Here are the relevant movie moments I found:"
+        elif "model" in error_msg.lower() or "404" in error_msg:
+            return f"⚠️ Model '{OPENAI_MODEL}' not available. Please check your FILMBUDDY_LLM_MODEL setting."
+        else:
+            return f"⚠️ Error ({error_type}): {error_msg[:150]}. Here are the relevant movie moments I found:"
 
 @app.get("/ping")
 def ping():
-    return {"ok": True, "llm_enabled": LLM_ENABLED}
+    return {"ok": True, "llm_enabled": LLM_ENABLED, "available_films": list(film_data.keys())}
+
+@app.get("/films")
+def list_films():
+    """List all available films with metadata"""
+    films = []
+    for film_id, data in film_data.items():
+        payloads = data["payloads"]
+        films.append({
+            "film_id": film_id,
+            "num_chunks": len(payloads),
+            "duration_seconds": max(r["t_end"] for r in payloads) if payloads else 0
+        })
+    return {"films": films}
 
 # ---------- Core search ----------
 def compute_temporal_score(t_end: float, t_now: float) -> float:
@@ -197,19 +367,29 @@ def compute_temporal_score(t_end: float, t_now: float) -> float:
     return math.exp(-time_diff / TEMPORAL_DECAY)
 
 def search(query: str, film_id: str, t_now: float, spoiler_mode: str, top_k: int) -> AskResponse:
+    # Check if film exists
+    if film_id not in film_data:
+        raise HTTPException(
+            status_code=404, 
+            detail=f"Film '{film_id}' not found. Available: {list(film_data.keys())}"
+        )
+    
+    # Get film-specific data
+    payloads = film_data[film_id]["payloads"]
+    embeddings = film_data[film_id]["embeddings"]
+    
     # 1) embed query
     q = model.encode([query], normalize_embeddings=True).astype("float32")[0]  # (d,)
     # 2) cosine similarities (dot product because normalized)
     sims = embeddings @ q  # shape (N,)
     # 3) take global top-N candidates
-    cand_idx = np.argpartition(sims, -MAX_CANDIDATES)[-MAX_CANDIDATES:]
+    num_candidates = min(MAX_CANDIDATES, len(payloads))
+    cand_idx = np.argpartition(sims, -num_candidates)[-num_candidates:]
 
-    # 4) filter by film_id and spoiler gate, then compute combined scores
+    # 4) filter by spoiler gate and compute combined scores
     candidates = []
     for idx in cand_idx:
         r = payloads[idx]
-        if r.get("film_id") != film_id:
-            continue
         # spoiler time gate
         t_end = r.get("t_end", float("inf"))
         if spoiler_mode.lower() == "off" and t_end > t_now:
@@ -268,7 +448,7 @@ def search(query: str, film_id: str, t_now: float, spoiler_mode: str, top_k: int
     note = "spoiler_mode=off; kept only chunks with t_end ≤ t_now" if spoiler_mode.lower() == "off" else "spoiler_mode=on; future chunks allowed"
 
     # 6) Generate LLM response
-    answer = generate_response(query, hits, t_now, spoiler_mode)
+    answer = generate_response(query, hits, t_now, spoiler_mode, film_id)
 
     return AskResponse(
         answer=answer,
@@ -302,11 +482,16 @@ def debug_window(
     delta: float = Query(10.0, description="+/- window in seconds"),
     limit: int = Query(50, description="max rows")
 ):
+    if film_id not in film_data:
+        raise HTTPException(
+            status_code=404, 
+            detail=f"Film '{film_id}' not found. Available: {list(film_data.keys())}"
+        )
+    
+    payloads = film_data[film_id]["payloads"]
     rows = []
     lo, hi = t_now - delta, t_now + delta
     for i, r in enumerate(payloads):
-        if r.get("film_id") != film_id:
-            continue
         ts = float(r.get("t_start", -1e18)); te = float(r.get("t_end", 1e18))
         if (ts <= hi + EPS) and (te >= lo - EPS):
             rows.append({

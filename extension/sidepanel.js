@@ -103,13 +103,21 @@ async function updateTimestamp() {
     // Request timestamp from content script via background
     const response = await chrome.runtime.sendMessage({ action: 'getTimestamp' });
 
-    if (response && response.timestamp !== undefined) {
+    if (response && response.found && response.timestamp !== undefined) {
       state.currentTimestamp = response.timestamp;
       elements.currentTime.textContent = formatTime(response.timestamp);
+      elements.currentTime.style.color = ''; // Reset color on success
+    } else if (response && !response.found) {
+      // Video element not found on page
+      elements.currentTime.textContent = 'No video';
+      elements.currentTime.style.color = '#ff9800'; // Orange warning
+      console.warn('[FilmBuddy] Video not detected on current page');
     }
   } catch (error) {
     // Content script might not be available (not on a video page)
-    // This is normal, just use the last known timestamp
+    elements.currentTime.textContent = 'Not ready';
+    elements.currentTime.style.color = '#999';
+    console.log('[FilmBuddy] Content script not available:', error.message);
   }
 }
 
