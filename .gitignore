@@ -25,9 +25,8 @@ ENV/
 .DS_Store
 Thumbs.db
 
-# Data files (large, can be regenerated)
-*.srt
-*.jsonl
+# Data files
+# Note: Tracking .srt and .jsonl files in repo
 !.env.example
 
 # Logs
