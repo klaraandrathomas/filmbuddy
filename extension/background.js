@@ -147,8 +147,60 @@ chrome.runtime.onInstalled.addListener((details) => {
   if (details.reason === 'update') {
     console.log('[FilmBuddy] Extension updated to version', chrome.runtime.getManifest().version);
   }
+
+  // Inject content script into existing matching tabs
+  injectContentScriptIntoExistingTabs();
 });
 
 // ========== STARTUP ==========
 
 console.log('[FilmBuddy] Background service worker started');
+
+// ========== CONTENT SCRIPT INJECTION ==========
+
+/**
+ * Inject content script into all existing tabs that match our host permissions.
+ * This allows the extension to work immediately after install/reload without
+ * requiring users to refresh their streaming pages.
+ */
+async function injectContentScriptIntoExistingTabs() {
+  const matchPatterns = [
+    '*://*.netflix.com/*',
+    '*://*.youtube.com/*',
+    '*://*.disneyplus.com/*',
+    '*://*.hulu.com/*',
+    '*://*.amazon.com/*',
+    '*://*.max.com/*'
+  ];
+
+  try {
+    // Query all tabs that match our streaming sites
+    const tabs = await chrome.tabs.query({ url: matchPatterns });
+
+    console.log(`[FilmBuddy] Found ${tabs.length} matching tab(s) to inject`);
+
+    for (const tab of tabs) {
+      try {
+        // Check if content script is already injected by sending a ping
+        const response = await chrome.tabs.sendMessage(tab.id, { action: 'ping' });
+        if (response?.loaded) {
+          console.log(`[FilmBuddy] Content script already loaded on tab ${tab.id}`);
+          continue;
+        }
+      } catch (e) {
+        // Content script not loaded, inject it
+        try {
+          await chrome.scripting.executeScript({
+            target: { tabId: tab.id },
+            files: ['content.js']
+          });
+          console.log(`[FilmBuddy] Injected content script into tab ${tab.id}: ${tab.url}`);
+        } catch (injectionError) {
+          console.warn(`[FilmBuddy] Could not inject into tab ${tab.id}:`, injectionError.message);
+        }
+      }
+    }
+  } catch (error) {
+    console.error('[FilmBuddy] Error querying tabs:', error);
+  }
+}
