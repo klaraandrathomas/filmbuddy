@@ -15,7 +15,7 @@ if (window.__filmbuddyInjected) {
   const API_BASE_URL = 'http://localhost:8000';
   const PANEL_WIDTH = 360;
   const SHOW_THRESHOLD = 60; // px from right edge to trigger show
-  const AUTO_HIDE_DELAY = 30000; // 30 seconds before auto-hiding
+  const AUTO_HIDE_DELAY = 5000; // 5 seconds before auto-hiding
 
   // ========== STATE ==========
   const state = {
@@ -81,13 +81,13 @@ if (window.__filmbuddyInjected) {
       display: flex;
       flex-direction: column;
       flex: 1;
+      min-height: 0;
       margin: 16px;
       padding: 16px;
       background: rgba(20, 20, 20, 0.35);
       border-radius: 14px;
       border: 1px solid rgba(255, 255, 255, 0.1);
       overflow: hidden;
-      gap: 12px;
     }
 
     .fb-header {
@@ -105,7 +105,7 @@ if (window.__filmbuddyInjected) {
     }
 
     .fb-title {
-      font-size: 24px;
+      font-size: 28px;
       font-weight: 600;
       color: #fff;
       letter-spacing: -0.3px;
@@ -219,8 +219,9 @@ if (window.__filmbuddyInjected) {
 
     .fb-chat {
       flex: 1;
+      min-height: 0;
       overflow-y: auto;
-      padding: 8px 4px;
+      padding: 12px 4px;
       display: flex;
       flex-direction: column;
       gap: 14px;
