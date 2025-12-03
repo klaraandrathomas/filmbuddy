@@ -8,7 +8,7 @@ from typing import List, Optional, Dict, Any
 import os, json, ujson, math
 import numpy as np
 from sentence_transformers import SentenceTransformer
-from openai import AzureOpenAI
+from openai import OpenAI, AzureOpenAI
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
@@ -19,6 +19,7 @@ try:
     from preprocessing.vector_store import MovieVectorStore
     VECTOR_STORE_AVAILABLE = True
 except ImportError:
+    MovieVectorStore = None  # Define as None so type hints don't fail
     VECTOR_STORE_AVAILABLE = False
     print("[startup] Warning: MovieVectorStore not available. Enriched corpus features disabled.")
 
@@ -42,24 +43,44 @@ CUE_TYPE_WEIGHTS = {
     "metadata": 0.1,      # Almost ignore metadata
 }
 
-# Azure OpenAI Configuration
+# LLM Configuration (supports OpenAI, Azure OpenAI, and LiteLLM)
+# Azure OpenAI settings
 AZURE_OPENAI_API_KEY = os.environ.get("AZURE_OPENAI_API_KEY")
 AZURE_OPENAI_ENDPOINT = os.environ.get("AZURE_OPENAI_ENDPOINT")
 AZURE_OPENAI_API_VERSION = os.environ.get("AZURE_OPENAI_API_VERSION", "2024-10-21")
-AZURE_OPENAI_DEPLOYMENT = os.environ.get("AZURE_OPENAI_DEPLOYMENT_NAME", "gpt-4.1")
+AZURE_OPENAI_DEPLOYMENT = os.environ.get("AZURE_OPENAI_DEPLOYMENT_NAME", "gpt-4")
 
-# Check if Azure OpenAI is configured
-LLM_ENABLED = AZURE_OPENAI_API_KEY is not None and AZURE_OPENAI_ENDPOINT is not None
+# Standard OpenAI / LiteLLM settings
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
+LITELLM_API_KEY = os.environ.get("LITELLM_API_KEY")
+LITELLM_API_BASE = os.environ.get("LITELLM_API_BASE")
+OPENAI_MODEL = os.environ.get("FILMBUDDY_LLM_MODEL", "gpt-4o")
 
-# Initialize Azure OpenAI client
-if LLM_ENABLED:
+# Determine which provider to use (Azure takes priority if configured)
+USE_AZURE = AZURE_OPENAI_API_KEY is not None and AZURE_OPENAI_ENDPOINT is not None
+
+if USE_AZURE:
+    # Use Azure OpenAI
+    LLM_ENABLED = True
+    LLM_MODEL = AZURE_OPENAI_DEPLOYMENT
     openai_client = AzureOpenAI(
         api_key=AZURE_OPENAI_API_KEY,
         api_version=AZURE_OPENAI_API_VERSION,
         azure_endpoint=AZURE_OPENAI_ENDPOINT
     )
 else:
-    openai_client = None
+    # Use standard OpenAI or LiteLLM
+    api_key = LITELLM_API_KEY or OPENAI_API_KEY
+    LLM_ENABLED = api_key is not None
+    LLM_MODEL = OPENAI_MODEL
+
+    if LLM_ENABLED:
+        if LITELLM_API_BASE:
+            openai_client = OpenAI(api_key=api_key, base_url=LITELLM_API_BASE)
+        else:
+            openai_client = OpenAI(api_key=api_key)
+    else:
+        openai_client = None
 
 # ---------- Data structures ----------
 class AskRequest(BaseModel):
@@ -221,12 +242,18 @@ def startup():
             print(f"[startup] Run corpus builder to create enriched versions")
     
     if LLM_ENABLED:
-        print(f"[startup] LLM generation enabled with Azure OpenAI")
-        print(f"[startup] Azure endpoint: {AZURE_OPENAI_ENDPOINT}")
-        print(f"[startup] Deployment: {AZURE_OPENAI_DEPLOYMENT}")
-        print(f"[startup] API version: {AZURE_OPENAI_API_VERSION}")
+        print(f"[startup] LLM generation enabled")
+        if USE_AZURE:
+            print(f"[startup] Provider: Azure OpenAI")
+            print(f"[startup] Endpoint: {AZURE_OPENAI_ENDPOINT}")
+            print(f"[startup] Deployment: {LLM_MODEL}")
+        else:
+            print(f"[startup] Provider: OpenAI" + (" (via LiteLLM)" if LITELLM_API_BASE else ""))
+            print(f"[startup] Model: {LLM_MODEL}")
+            if LITELLM_API_BASE:
+                print(f"[startup] Base URL: {LITELLM_API_BASE}")
     else:
-        print("[startup] LLM generation disabled (AZURE_OPENAI_API_KEY or AZURE_OPENAI_ENDPOINT not set)")
+        print("[startup] LLM generation disabled (no API keys configured)")
 
 # ---------- LLM Generation ----------
 def get_temporal_context(film_id: str, t_now: float, window_seconds: float = 60) -> Dict[str, Any]:
@@ -558,11 +585,11 @@ User's question: {query}
 Please answer the question using the context above. Pay special attention to the CURRENT SCENE section for identifying "who" or "what" the user is referring to."""
 
     try:
-        print(f"[LLM] Calling Azure OpenAI with deployment: {AZURE_OPENAI_DEPLOYMENT}")
+        print(f"[LLM] Calling Azure OpenAI with deployment: {OPENAI_MODEL}")
         print(f"[LLM] System prompt length: {len(system_prompt)}, User prompt length: {len(user_prompt)}")
         
         response = openai_client.chat.completions.create(
-            model=AZURE_OPENAI_DEPLOYMENT,
+            model=LLM_MODEL,
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt}
@@ -582,11 +609,13 @@ Please answer the question using the context above. Pay special attention to the
         
         # Return a more informative error message
         if "api_key" in error_msg.lower() or "authentication" in error_msg.lower() or "401" in error_msg:
-            return "⚠️ Azure OpenAI authentication failed (401). Check your AZURE_OPENAI_API_KEY in .env file."
+            key_name = "AZURE_OPENAI_API_KEY" if USE_AZURE else "OPENAI_API_KEY"
+            return f"⚠️ Authentication failed (401). Check your {key_name} in .env file."
         elif "rate" in error_msg.lower() or "quota" in error_msg.lower() or "429" in error_msg:
-            return "⚠️ API rate limit or quota exceeded. Try again later or check your Azure usage limits."
+            return "⚠️ API rate limit or quota exceeded. Try again later."
         elif "model" in error_msg.lower() or "deployment" in error_msg.lower() or "404" in error_msg:
-            return f"⚠️ Deployment '{AZURE_OPENAI_DEPLOYMENT}' not found. Check your AZURE_OPENAI_DEPLOYMENT_NAME setting."
+            setting_name = "AZURE_OPENAI_DEPLOYMENT_NAME" if USE_AZURE else "FILMBUDDY_LLM_MODEL"
+            return f"⚠️ Model/Deployment '{LLM_MODEL}' not found. Check your {setting_name} setting."
         else:
             return f"⚠️ LLM Error ({error_type}): {error_msg[:150]}..."
 
@@ -787,7 +816,7 @@ Be conversational and engaging, like a film-enthusiast friend. Keep responses co
 
     try:
         response = openai_client.chat.completions.create(
-            model=OPENAI_MODEL,
+            model=LLM_MODEL,
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt}
