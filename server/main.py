@@ -8,11 +8,19 @@ from typing import List, Optional, Dict, Any
 import os, json, ujson, math
 import numpy as np
 from sentence_transformers import SentenceTransformer
-from openai import OpenAI
+from openai import AzureOpenAI
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
 load_dotenv()
+
+# Import MovieVectorStore for enriched corpus support
+try:
+    from preprocessing.vector_store import MovieVectorStore
+    VECTOR_STORE_AVAILABLE = True
+except ImportError:
+    VECTOR_STORE_AVAILABLE = False
+    print("[startup] Warning: MovieVectorStore not available. Enriched corpus features disabled.")
 
 # ---------- Config ----------
 CORPUS_DIR = os.environ.get("FILMBUDDY_CORPUS_DIR", "corpus")
@@ -34,22 +42,22 @@ CUE_TYPE_WEIGHTS = {
     "metadata": 0.1,      # Almost ignore metadata
 }
 
-# LLM Configuration (supports both OpenAI and LiteLLM)
-OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
-LITELLM_API_KEY = os.environ.get("LITELLM_API_KEY")
-LITELLM_API_BASE = os.environ.get("LITELLM_API_BASE")
-OPENAI_MODEL = os.environ.get("FILMBUDDY_LLM_MODEL", "gpt-4o")
+# Azure OpenAI Configuration
+AZURE_OPENAI_API_KEY = os.environ.get("AZURE_OPENAI_API_KEY")
+AZURE_OPENAI_ENDPOINT = os.environ.get("AZURE_OPENAI_ENDPOINT")
+AZURE_OPENAI_API_VERSION = os.environ.get("AZURE_OPENAI_API_VERSION", "2024-10-21")
+AZURE_OPENAI_DEPLOYMENT = os.environ.get("AZURE_OPENAI_DEPLOYMENT_NAME", "gpt-4.1")
 
-# Determine which API key to use
-api_key = LITELLM_API_KEY or OPENAI_API_KEY
-LLM_ENABLED = api_key is not None
+# Check if Azure OpenAI is configured
+LLM_ENABLED = AZURE_OPENAI_API_KEY is not None and AZURE_OPENAI_ENDPOINT is not None
 
-# Initialize OpenAI client (works with LiteLLM base_url too)
+# Initialize Azure OpenAI client
 if LLM_ENABLED:
-    if LITELLM_API_BASE:
-        openai_client = OpenAI(api_key=api_key, base_url=LITELLM_API_BASE)
-    else:
-        openai_client = OpenAI(api_key=api_key)
+    openai_client = AzureOpenAI(
+        api_key=AZURE_OPENAI_API_KEY,
+        api_version=AZURE_OPENAI_API_VERSION,
+        azure_endpoint=AZURE_OPENAI_ENDPOINT
+    )
 else:
     openai_client = None
 
@@ -83,6 +91,7 @@ class AskResponse(BaseModel):
     top_k: int
     validation: Dict[str, Any]
     llm_enabled: bool = False
+    current_scene: Optional[Dict[str, Any]] = None  # Enriched scene data if available
 
 # ---------- App ----------
 app = FastAPI(title="FilmBuddy Minimal Backend", version="0.1.0")
@@ -100,6 +109,13 @@ app.add_middleware(
 # Store data per film
 film_data = {}  # film_id -> {"payloads": [...], "embeddings": np.ndarray}
 model: SentenceTransformer = None
+
+# Vector store for enriched corpus (optional, enhanced features)
+vector_store: Optional[MovieVectorStore] = None
+
+# Mapping from subtitle corpus film_id to enriched corpus movie_id
+# This handles cases where naming differs (e.g., "la_la_land" -> "la_la_land_2016")
+film_id_to_enriched_id = {}
 
 def load_jsonl(path: str) -> List[Dict[str, Any]]:
     data = []
@@ -122,13 +138,22 @@ def normalize_rows(x: np.ndarray) -> np.ndarray:
 
 @app.on_event("startup")
 def startup():
-    global film_data, model
+    global film_data, model, vector_store
     
     if not os.path.exists(CORPUS_DIR):
         raise RuntimeError(f"Corpus directory not found at {CORPUS_DIR}")
     
     # Load embedding model once
     model = SentenceTransformer(EMB_MODEL)
+    
+    # Initialize vector store if available
+    if VECTOR_STORE_AVAILABLE:
+        try:
+            vector_store = MovieVectorStore(persist_directory="./chroma_db")
+            print(f"[startup] ✓ Vector store initialized")
+        except Exception as e:
+            print(f"[startup] Warning: Failed to initialize vector store: {e}")
+            vector_store = None
     
     # Find all corpus files
     corpus_files = [f for f in os.listdir(CORPUS_DIR) if f.endswith('_chunks.jsonl')]
@@ -175,91 +200,274 @@ def startup():
     print(f"[startup] Total films loaded: {len(film_data)}")
     print(f"[startup] Available film_ids: {list(film_data.keys())}")
     
+    # Check for enriched corpora in vector store and build mapping
+    if vector_store:
+        enriched_movies = vector_store.list_movies()
+        if enriched_movies:
+            print(f"[startup] ✓ Found {len(enriched_movies)} enriched corpus(es) in vector store:")
+            for movie_id in enriched_movies:
+                print(f"[startup]   - {movie_id} (with character metadata)")
+                
+                # Try to match to loaded films (fuzzy matching)
+                # e.g., "la_la_land_2016" matches "la_la_land"
+                for film_id in film_data.keys():
+                    # Simple heuristic: enriched ID often starts with film_id
+                    if movie_id.startswith(film_id) or film_id.startswith(movie_id.rsplit('_', 1)[0]):
+                        film_id_to_enriched_id[film_id] = movie_id
+                        print(f"[startup]   → Mapped '{film_id}' to enriched corpus '{movie_id}'")
+                        break
+        else:
+            print(f"[startup] No enriched corpora found in vector store yet")
+            print(f"[startup] Run corpus builder to create enriched versions")
+    
     if LLM_ENABLED:
-        print(f"[startup] LLM generation enabled with model: {OPENAI_MODEL}")
-        if LITELLM_API_KEY:
-            print(f"[startup] Using LiteLLM with base: {LITELLM_API_BASE}")
-            print(f"[startup] LiteLLM API key: {LITELLM_API_KEY[:7]}...{LITELLM_API_KEY[-4:]}")
-        elif OPENAI_API_KEY:
-            print(f"[startup] Using OpenAI API key: sk-...{OPENAI_API_KEY[-4:]}")
+        print(f"[startup] LLM generation enabled with Azure OpenAI")
+        print(f"[startup] Azure endpoint: {AZURE_OPENAI_ENDPOINT}")
+        print(f"[startup] Deployment: {AZURE_OPENAI_DEPLOYMENT}")
+        print(f"[startup] API version: {AZURE_OPENAI_API_VERSION}")
     else:
-        print("[startup] LLM generation disabled (no OPENAI_API_KEY or LITELLM_API_KEY set)")
+        print("[startup] LLM generation disabled (AZURE_OPENAI_API_KEY or AZURE_OPENAI_ENDPOINT not set)")
 
 # ---------- LLM Generation ----------
 def get_temporal_context(film_id: str, t_now: float, window_seconds: float = 60) -> Dict[str, Any]:
-    """Get recent dialogue and scene context around current timestamp."""
+    """Get recent dialogue and scene context around current timestamp.
+    
+    Uses soft scene boundary detection: identifies multiple scenes but de-weights
+    older scenes rather than removing them completely.
+    """
     if film_id not in film_data:
-        return {"recent_dialogue": [], "characters_present": set()}
+        return {"recent_dialogue": [], "characters_present": set(), "scenes": []}
     
     payloads = film_data[film_id]["payloads"]
     
-    # Get chunks from the last 60 seconds (or custom window)
+    # Get chunks from the last window_seconds
     recent_chunks = []
     for chunk in payloads:
         # Only include chunks that END within our window before current time
         if t_now - window_seconds <= chunk["t_end"] <= t_now:
-            recent_chunks.append(chunk)
+            recent_chunks.append(chunk.copy())  # Copy to avoid modifying original
     
     # Sort by timestamp
     recent_chunks.sort(key=lambda x: x["t_start"])
     
-    # Extract character names from dialogue patterns
-    # Look for patterns like "Character:" or "- Character -" or capitalized names at start
+    # SCENE BOUNDARY DETECTION
+    # Detect scene changes by looking for time gaps (>3 seconds indicates scene cut)
+    scene_boundaries = []
+    for i in range(len(recent_chunks) - 1):
+        time_gap = recent_chunks[i+1]['t_start'] - recent_chunks[i]['t_end']
+        if time_gap > 3.0:  # 3+ second gap indicates scene change
+            scene_boundaries.append(i)
+    
+    # Segment chunks into scenes
+    scenes = []
+    start_idx = 0
+    for boundary_idx in scene_boundaries:
+        scene_chunks = recent_chunks[start_idx:boundary_idx + 1]
+        if scene_chunks:
+            scenes.append({
+                'chunks': scene_chunks,
+                't_start': scene_chunks[0]['t_start'],
+                't_end': scene_chunks[-1]['t_end'],
+                'is_current': False  # Will update below
+            })
+        start_idx = boundary_idx + 1
+    
+    # Add the final scene (after last boundary, or all chunks if no boundaries)
+    final_scene_chunks = recent_chunks[start_idx:]
+    if final_scene_chunks:
+        scenes.append({
+            'chunks': final_scene_chunks,
+            't_start': final_scene_chunks[0]['t_start'],
+            't_end': final_scene_chunks[-1]['t_end'],
+            'is_current': True  # Most recent scene
+        })
+    
+    # If no boundaries detected, all chunks are one scene
+    if not scenes and recent_chunks:
+        scenes.append({
+            'chunks': recent_chunks,
+            't_start': recent_chunks[0]['t_start'],
+            't_end': recent_chunks[-1]['t_end'],
+            'is_current': True
+        })
+    
+    # SOFT WEIGHTING: Add recency weight to each chunk
+    # Current scene gets weight 1.0, previous scenes get exponentially lower weights
+    for scene_idx, scene in enumerate(scenes):
+        is_current = scene['is_current']
+        # Current scene: full weight, previous scenes: decreasing weight
+        if is_current:
+            scene_weight = 1.0
+        else:
+            # Exponential decay: older scenes get lower weight
+            scenes_ago = len(scenes) - 1 - scene_idx
+            scene_weight = 0.3 ** scenes_ago  # e.g., 0.3 for previous scene, 0.09 for 2 scenes ago
+        
+        scene['weight'] = scene_weight
+        # Add weight metadata to each chunk
+        for chunk in scene['chunks']:
+            chunk['scene_weight'] = scene_weight
+            chunk['scene_idx'] = scene_idx
+    
+    # Identify which scene the current timestamp (t_now) belongs to
+    # This helps match dialogue to the correct scene
+    current_scene_idx = len(scenes) - 1  # Default to most recent
+    for idx, scene in enumerate(scenes):
+        if scene['t_start'] <= t_now <= scene['t_end'] + 5:  # 5s buffer
+            current_scene_idx = idx
+            scene['is_current'] = True
+        else:
+            scene['is_current'] = False
+    
+    # Extract character names from dialogue patterns (focus on current scene)
     characters_present = set()
-    for chunk in recent_chunks[-10:]:  # Focus on last 10 chunks
-        text = chunk.get("text", "")
-        # Simple heuristic: extract capitalized words that might be names
-        # This is basic - could be enhanced with NER or character list
-        if chunk.get("cue_type") == "dialogue":
-            # Look for dialogue attribution patterns
-            lines = text.split('\n')
-            for line in lines:
-                # Skip stage directions in parentheses
-                if line.strip().startswith('(') or line.strip().startswith('<i>('):
-                    continue
-                # Add actual dialogue as indication someone is speaking
-                if line.strip() and not line.strip().startswith('-'):
-                    characters_present.add("multiple characters")  # Generic placeholder
+    current_scene = scenes[current_scene_idx] if scenes else None
+    if current_scene:
+        for chunk in current_scene['chunks']:
+            text = chunk.get("text", "")
+            if chunk.get("cue_type") == "dialogue":
+                # Look for name mentions in dialogue (e.g., "Answer the question, Patrick")
+                import re
+                # Common name patterns - capitalize words that might be names
+                potential_names = re.findall(r'\b([A-Z][a-z]+)\b', text)
+                for name in potential_names:
+                    if name not in ['I', 'A', 'The', 'And', 'Or', 'But', 'So', 'If']:
+                        characters_present.add(name)
+    
+    # Flatten all chunks with their weights for LLM context
+    all_weighted_chunks = []
+    for scene in scenes:
+        all_weighted_chunks.extend(scene['chunks'])
+    
+    print(f"[temporal_context] Detected {len(scenes)} scene(s) in {window_seconds}s window")
+    if len(scenes) > 1:
+        print(f"[temporal_context] Current scene: {current_scene_idx}, spans {current_scene['t_start']:.1f}-{current_scene['t_end']:.1f}s")
     
     return {
-        "recent_dialogue": recent_chunks[-10:],  # Last 10 chunks
-        "characters_present": characters_present
+        "recent_dialogue": all_weighted_chunks,  # All chunks with scene_weight metadata
+        "characters_present": characters_present,
+        "scene_boundary_detected": len(scene_boundaries) > 0,
+        "scenes": scenes,
+        "current_scene_idx": current_scene_idx
     }
 
 
-def generate_response(query: str, hits: List[Hit], t_now: float, spoiler_mode: str, film_id: str = None) -> str:
-    """Generate a conversational response using LLM based on retrieved chunks and temporal context."""
+def generate_response(query: str, hits: List[Hit], t_now: float, spoiler_mode: str, film_id: str = None, enriched_scene: dict = None) -> str:
+    """Generate a conversational response using LLM based on retrieved chunks and temporal context.
+    
+    Args:
+        query: User's question
+        hits: List of retrieved subtitle chunks
+        t_now: Current playback time
+        spoiler_mode: "on" or "off"
+        film_id: Film identifier
+        enriched_scene: Optional enriched scene data from vector store (can answer even without hits)
+    """
     if not LLM_ENABLED:
         print("[LLM] LLM_ENABLED is False - returning None")
         return None
     
-    if not hits:
-        print("[LLM] No hits provided - returning None")
+    # Allow LLM call if we have either hits OR enriched scene data
+    if not hits and not enriched_scene:
+        print("[LLM] No hits and no enriched scene - returning None")
         return None
     
     if not openai_client:
         print("[LLM] OpenAI client is None - returning error")
         return "⚠️ OpenAI client not initialized. Check server logs."
 
-    # Get temporal context (recent scene info)
-    temporal_ctx = get_temporal_context(film_id, t_now) if film_id else {"recent_dialogue": [], "characters_present": set()}
+    # Use the enriched_scene passed as parameter (already fetched in search)
+    # This avoids double-fetching the same scene data
     
-    # Build CURRENT SCENE CONTEXT (last 30-60 seconds of dialogue)
-    current_scene_parts = []
-    for chunk in temporal_ctx["recent_dialogue"][-8:]:  # Last 8 chunks from recent scene
-        ts = chunk.get("t_start", 0)
-        mins, secs = int(ts // 60), int(ts % 60)
-        time_fmt = f"{mins}:{secs:02d}"
-        text = chunk.get("text", "")
-        cue_type = chunk.get("cue_type", "")
+    # Build CURRENT SCENE CONTEXT
+    # IMPORTANT: Prioritize subtitle-based context (temporally accurate)
+    # Use enriched data as supplementary info only
+    
+    # Always build subtitle context (temporal ground truth)
+    # Use 45-second window to reduce cross-scene contamination
+    temporal_ctx = get_temporal_context(film_id, t_now, window_seconds=45) if film_id else {"recent_dialogue": [], "characters_present": set(), "scenes": []}
+    
+    # Build scene-aware subtitle context
+    scenes = temporal_ctx.get("scenes", [])
+    current_scene_idx = temporal_ctx.get("current_scene_idx", 0)
+    
+    if scenes:
+        # Multi-scene context: show each scene separately
+        scene_parts = []
+        for idx, scene in enumerate(scenes):
+            is_current = (idx == current_scene_idx)
+            scene_marker = "🎬 CURRENT SCENE" if is_current else f"📽️ Previous Scene ({scene['weight']:.1f} relevance)"
+            
+            scene_lines = []
+            for chunk in scene['chunks'][-10:]:  # Last 10 chunks per scene
+                ts = chunk.get("t_start", 0)
+                mins, secs = int(ts // 60), int(ts % 60)
+                time_fmt = f"{mins}:{secs:02d}"
+                text = chunk.get("text", "")
+                cue_type = chunk.get("cue_type", "")
+                
+                # Format differently for dialogue vs non-verbal
+                if cue_type == "dialogue":
+                    scene_lines.append(f"[{time_fmt}] {text}")
+                elif cue_type == "nonverbal" and len(text) < 50:
+                    scene_lines.append(f"[{time_fmt}] ({text})")
+            
+            if scene_lines:
+                scene_parts.append(f"{scene_marker}:\n" + "\n".join(scene_lines))
         
-        # Format differently for dialogue vs non-verbal
-        if cue_type == "dialogue":
-            current_scene_parts.append(f"[{time_fmt}] {text}")
-        elif cue_type == "nonverbal" and len(text) < 50:
-            current_scene_parts.append(f"[{time_fmt}] ({text})")
+        subtitle_context = "\n\n".join(scene_parts)
+    else:
+        # Fallback: single scene or no scenes
+        current_scene_parts = []
+        for chunk in temporal_ctx["recent_dialogue"][-10:]:
+            ts = chunk.get("t_start", 0)
+            mins, secs = int(ts // 60), int(ts % 60)
+            time_fmt = f"{mins}:{secs:02d}"
+            text = chunk.get("text", "")
+            cue_type = chunk.get("cue_type", "")
+            
+            if cue_type == "dialogue":
+                current_scene_parts.append(f"[{time_fmt}] {text}")
+            elif cue_type == "nonverbal" and len(text) < 50:
+                current_scene_parts.append(f"[{time_fmt}] ({text})")
+        
+        subtitle_context = "\n".join(current_scene_parts) if current_scene_parts else "No recent dialogue available."
     
-    current_scene_context = "\n".join(current_scene_parts) if current_scene_parts else "No recent dialogue available."
+    # Add enriched character data if available and relevant
+    if enriched_scene:
+        location = enriched_scene.get('location', 'Unknown')
+        characters_present = enriched_scene.get('characters_present', [])
+        character_details = enriched_scene.get('character_details', {})
+        
+        # Format character information
+        character_info_parts = []
+        for char_name in characters_present:
+            if char_name in character_details:
+                details = character_details[char_name]
+                full_name = details.get('full_name', char_name)
+                actor = details.get('actor')
+                
+                char_line = f"  • {full_name}"
+                if actor:
+                    char_line += f" (played by {actor})"
+                character_info_parts.append(char_line)
+        
+        character_info = "\n".join(character_info_parts) if character_info_parts else ""
+        
+        # Combine: Subtitle context (primary) + Enriched data (supplementary)
+        current_scene_context = f"""RECENT DIALOGUE (what's actually happening now):
+{subtitle_context}
+
+ADDITIONAL CHARACTER INFO (from script analysis):
+Location in script: {location}
+{character_info if character_info else "(No character details available for this moment)"}"""
+        
+        print(f"[LLM] Using hybrid context: Subtitles + enriched data ({location})")
+        
+    else:
+        # Fall back to subtitle context only (no enriched data)
+        current_scene_context = subtitle_context
+        print(f"[LLM] Using subtitle context only (no enriched data)")
     
     # Build SEMANTIC SEARCH RESULTS (RAG hits)
     relevant_moments_parts = []
@@ -281,20 +489,59 @@ def generate_response(query: str, hits: List[Hit], t_now: float, spoiler_mode: s
     seconds = int(t_now % 60)
     time_str = f"{minutes}:{seconds:02d}"
 
+    # Enhanced system prompt with character awareness
+    if enriched_scene:
+        character_context_note = """
+CHARACTERS IN CURRENT SCENE - Use this to identify "that guy", "her", "the woman", etc.:
+The "Characters in this scene" section shows EXACTLY who is on screen right now with their full details.
+When someone asks "who's that guy?" or similar vague questions, check the character list for the current scene."""
+    else:
+        character_context_note = """
+Note: This film uses basic subtitle context (no character metadata available).
+Do your best to identify characters from dialogue patterns."""
+
+    # Check if multi-scene context is present
+    has_multiple_scenes = len(scenes) > 1
+    scene_context_note = ""
+    if has_multiple_scenes:
+        scene_context_note = f"""
+MULTI-SCENE CONTEXT:
+The dialogue below shows {len(scenes)} different scenes from the last 45 seconds.
+The viewer is currently watching the scene marked "🎬 CURRENT SCENE" at {time_str}.
+Previous scenes are shown with lower relevance weights - use them for context but NOT for "who is this?" questions."""
+    
     system_prompt = f"""You are FilmBuddy, a friendly and knowledgeable movie companion chatbot. You help viewers understand and engage with the movie they're watching.
 
 Current playback time: {time_str} ({t_now:.0f} seconds into the film)
 Spoiler mode: {spoiler_mode}
 
+{character_context_note}
+{scene_context_note}
+
+CRITICAL: SCENE AWARENESS AND RECENCY
+⚠️ For character identification questions ("who is this?", "who are they?", "who are these two?"):
+- ONLY use dialogue marked "🎬 CURRENT SCENE" - this is what the viewer sees RIGHT NOW
+- If you see multiple scenes, IGNORE previous scenes (📽️) for character identification
+- Look at the LAST 2-3 dialogue entries in the CURRENT SCENE only
+- The current scene may only have 5-10 seconds of dialogue - that's okay, focus on it
+- If the current scene dialogue lacks clear character indicators, check "Characters in this scene" metadata
+- If BOTH current dialogue AND metadata are unclear, say you're uncertain rather than guessing
+
 IMPORTANT RULES:
-1. Use BOTH the current scene context AND relevant moments to answer questions
-2. For vague references like "that guy" or "her" - use the CURRENT SCENE CONTEXT to identify who's on screen
-3. The "Current Scene" shows what just happened (last 30-60 seconds) - this is what the viewer is seeing NOW
-4. The "Relevant Moments" are semantically similar content that might provide additional context
+1. **Prioritize Current Scene**: When you see "🎬 CURRENT SCENE", that's the ONLY dialogue happening right now
+2. For vague references like "that guy", "her", "the woman", "these two":
+   - Find the "🎬 CURRENT SCENE" section
+   - Read ONLY the dialogue in that current scene
+   - Check if character names are mentioned there
+   - Use "Characters in this scene" metadata if available AND it matches the timing
+   - Be specific: "That's [Character Name], played by [Actor], who is [role]"
+3. Previous scenes (📽️) provide context for plot/backstory questions but NOT for "who is this?" questions
+4. The "Relevant Moments" provide additional context but may be from different scenes - use them for plot/theme questions, not "who is this" questions
 5. {"Since spoiler mode is OFF, do NOT reveal any plot points, character fates, or events that happen after the current timestamp" if spoiler_mode.lower() == "off" else "Spoiler mode is ON, so you may discuss the full film"}
 6. Be conversational and engaging, like a friend watching the movie with the viewer
-7. If you can't identify who/what they're referring to, say so honestly - don't guess
-8. Keep responses concise but informative (2-4 sentences typically)"""
+7. **If you can't confidently identify characters from CURRENT SCENE dialogue, say so honestly** - don't use previous scenes to guess
+8. Keep responses concise but informative (2-4 sentences typically)
+9. When identifying characters, mention both their character name AND the actor's name"""
 
     user_prompt = f"""CURRENT SCENE (what's happening right now):
 {current_scene_context}
@@ -311,11 +558,11 @@ User's question: {query}
 Please answer the question using the context above. Pay special attention to the CURRENT SCENE section for identifying "who" or "what" the user is referring to."""
 
     try:
-        print(f"[LLM] Calling OpenAI API with model: {OPENAI_MODEL}")
+        print(f"[LLM] Calling Azure OpenAI with deployment: {AZURE_OPENAI_DEPLOYMENT}")
         print(f"[LLM] System prompt length: {len(system_prompt)}, User prompt length: {len(user_prompt)}")
         
         response = openai_client.chat.completions.create(
-            model=OPENAI_MODEL,
+            model=AZURE_OPENAI_DEPLOYMENT,
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt}
@@ -335,17 +582,24 @@ Please answer the question using the context above. Pay special attention to the
         
         # Return a more informative error message
         if "api_key" in error_msg.lower() or "authentication" in error_msg.lower() or "401" in error_msg:
-            return "⚠️ OpenAI API key issue. Please check your .env file has a valid OPENAI_API_KEY."
+            return "⚠️ Azure OpenAI authentication failed (401). Check your AZURE_OPENAI_API_KEY in .env file."
         elif "rate" in error_msg.lower() or "quota" in error_msg.lower() or "429" in error_msg:
-            return "⚠️ OpenAI API rate limit or quota exceeded. Here are the relevant movie moments I found:"
-        elif "model" in error_msg.lower() or "404" in error_msg:
-            return f"⚠️ Model '{OPENAI_MODEL}' not available. Please check your FILMBUDDY_LLM_MODEL setting."
+            return "⚠️ API rate limit or quota exceeded. Try again later or check your Azure usage limits."
+        elif "model" in error_msg.lower() or "deployment" in error_msg.lower() or "404" in error_msg:
+            return f"⚠️ Deployment '{AZURE_OPENAI_DEPLOYMENT}' not found. Check your AZURE_OPENAI_DEPLOYMENT_NAME setting."
         else:
-            return f"⚠️ Error ({error_type}): {error_msg[:150]}. Here are the relevant movie moments I found:"
+            return f"⚠️ LLM Error ({error_type}): {error_msg[:150]}..."
 
 @app.get("/ping")
 def ping():
-    return {"ok": True, "llm_enabled": LLM_ENABLED, "available_films": list(film_data.keys())}
+    enriched_films = vector_store.list_movies() if vector_store else []
+    return {
+        "ok": True,
+        "llm_enabled": LLM_ENABLED,
+        "vector_store_enabled": vector_store is not None,
+        "available_films": list(film_data.keys()),
+        "enriched_films": enriched_films
+    }
 
 @app.get("/films")
 def list_films():
@@ -353,18 +607,97 @@ def list_films():
     films = []
     for film_id, data in film_data.items():
         payloads = data["payloads"]
+        has_enriched = vector_store and vector_store.has_movie(film_id)
         films.append({
             "film_id": film_id,
             "num_chunks": len(payloads),
-            "duration_seconds": max(r["t_end"] for r in payloads) if payloads else 0
+            "duration_seconds": max(r["t_end"] for r in payloads) if payloads else 0,
+            "has_enriched_corpus": has_enriched
         })
     return {"films": films}
+
+@app.get("/movie/{movie_id}/scene")
+def get_scene_at_timestamp(
+    movie_id: str,
+    timestamp: float = Query(..., description="Playback time in seconds"),
+    buffer: float = Query(5.0, description="Timestamp tolerance in seconds")
+):
+    """
+    Get the enriched scene at a specific timestamp.
+    
+    Returns scene with:
+    - Location and scene header
+    - Characters present with full details (name, actor, gender, role)
+    - Scene summary
+    - Dialogue excerpt
+    - Alignment metadata
+    """
+    if not vector_store:
+        raise HTTPException(
+            status_code=503,
+            detail="Vector store not available. Enriched corpus features disabled."
+        )
+    
+    scene = vector_store.query_scene_at_timestamp(movie_id, timestamp, buffer)
+    
+    if not scene:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No scene found at timestamp {timestamp}s for movie '{movie_id}'"
+        )
+    
+    return scene
+
+@app.get("/movie/{movie_id}/characters")
+def get_movie_characters(movie_id: str):
+    """
+    Get all character metadata for a movie.
+    
+    Returns dict of character_name → character_details including:
+    - Full name
+    - Actor name
+    - Gender
+    - Role (protagonist/antagonist/supporting/minor)
+    - Description
+    - Occupation
+    """
+    if not vector_store:
+        raise HTTPException(
+            status_code=503,
+            detail="Vector store not available. Enriched corpus features disabled."
+        )
+    
+    characters = vector_store.get_all_characters(movie_id)
+    
+    if not characters:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No character data found for movie '{movie_id}'. May not have enriched corpus."
+        )
+    
+    return {"movie_id": movie_id, "characters": characters}
 
 # ---------- Core search ----------
 def compute_temporal_score(t_end: float, t_now: float) -> float:
     """Compute temporal proximity score using exponential decay."""
     time_diff = max(0, t_now - t_end)  # How long ago was this chunk
     return math.exp(-time_diff / TEMPORAL_DECAY)
+
+def is_deictic_query(query: str) -> bool:
+    """
+    Detect deictic questions - queries about current scene ("who is this?", "what's happening here?").
+    These require strong temporal grounding.
+    """
+    import re
+    deictic_patterns = [
+        r'\bwho (is|are|was|were|\'s) (this|that|these|those|he|she|they|the guy|the woman|the man|the girl)\b',
+        r'\bwhat (is|are|was|were|\'s) (this|that|happening|going on)\b',
+        r'\bwhere (is|are|was|were) (this|that|he|she|they)\b',
+        r'\bwho are (the |these |those )?two\b',
+        r'\bwho\'s (that|this|the)\b',
+    ]
+    query_lower = query.lower()
+    return any(re.search(pattern, query_lower) for pattern in deictic_patterns)
 
 def search(query: str, film_id: str, t_now: float, spoiler_mode: str, top_k: int) -> AskResponse:
     # Check if film exists
@@ -378,6 +711,13 @@ def search(query: str, film_id: str, t_now: float, spoiler_mode: str, top_k: int
     payloads = film_data[film_id]["payloads"]
     embeddings = film_data[film_id]["embeddings"]
     
+    # Detect deictic queries ("who is this?") and adjust temporal weighting
+    is_deictic = is_deictic_query(query)
+    temporal_weight = 0.6 if is_deictic else TEMPORAL_WEIGHT  # Boost temporal for deictic queries
+    
+    if is_deictic:
+        print(f"[search] Deictic query detected: '{query}' - boosting temporal weight to {temporal_weight}")
+    
     # 1) embed query
     q = model.encode([query], normalize_embeddings=True).astype("float32")[0]  # (d,)
     # 2) cosine similarities (dot product because normalized)
@@ -390,9 +730,11 @@ def search(query: str, film_id: str, t_now: float, spoiler_mode: str, top_k: int
     candidates = []
     for idx in cand_idx:
         r = payloads[idx]
-        # spoiler time gate
-        t_end = r.get("t_end", float("inf"))
-        if spoiler_mode.lower() == "off" and t_end > t_now:
+        # spoiler time gate - use t_start instead of t_end
+        # A chunk is a spoiler if it STARTS after the current time
+        t_start = r.get("t_start", 0)
+        t_end = r.get("t_end", 0)
+        if spoiler_mode.lower() == "off" and t_start > t_now:
             continue
 
         # Compute combined score: semantic + temporal + cue_type
@@ -403,8 +745,8 @@ def search(query: str, film_id: str, t_now: float, spoiler_mode: str, top_k: int
         cue_type = r.get("cue_type", "dialogue")
         cue_weight = CUE_TYPE_WEIGHTS.get(cue_type, 0.5)
 
-        # Combined score with cue type adjustment
-        base_score = (1 - TEMPORAL_WEIGHT) * semantic_score + TEMPORAL_WEIGHT * temporal_score
+        # Combined score with cue type adjustment (use dynamic temporal_weight)
+        base_score = (1 - temporal_weight) * semantic_score + temporal_weight * temporal_score
         combined_score = base_score * cue_weight
 
         candidates.append({
@@ -441,14 +783,35 @@ def search(query: str, film_id: str, t_now: float, spoiler_mode: str, top_k: int
         "num_filtered_candidates": len(candidates),
         "num_hits": int(len(hits)),
         "time_gate_enforced": (spoiler_mode.lower() == "off"),
-        "all_t_end_le_t_now": all(h.t_end <= t_now for h in hits) if spoiler_mode.lower() == "off" else None,
-        "temporal_weight": TEMPORAL_WEIGHT,
-        "temporal_decay_seconds": TEMPORAL_DECAY
+        "all_t_start_le_t_now": all(h.t_start <= t_now for h in hits) if spoiler_mode.lower() == "off" else None,
+        "temporal_weight": temporal_weight,  # Use actual weight (may be boosted for deictic)
+        "temporal_decay_seconds": TEMPORAL_DECAY,
+        "is_deictic_query": is_deictic
     }
-    note = "spoiler_mode=off; kept only chunks with t_end ≤ t_now" if spoiler_mode.lower() == "off" else "spoiler_mode=on; future chunks allowed"
+    note = "spoiler_mode=off; kept only chunks with t_start ≤ t_now" if spoiler_mode.lower() == "off" else "spoiler_mode=on; future chunks allowed"
 
-    # 6) Generate LLM response
-    answer = generate_response(query, hits, t_now, spoiler_mode, film_id)
+    # 6) Get enriched scene data if available
+    enriched_scene = None
+    if vector_store:
+        # Map film_id to enriched movie_id
+        enriched_id = film_id_to_enriched_id.get(film_id, film_id)
+        if vector_store.has_movie(enriched_id):
+            try:
+                enriched_scene = vector_store.query_scene_at_timestamp(enriched_id, t_now)
+                if enriched_scene:
+                    # Validate enriched scene against subtitle hits
+                    # If alignment confidence is low, don't use it
+                    confidence = enriched_scene.get('alignment_confidence', 0)
+                    if confidence < 0.5:
+                        print(f"[search] ⚠ Enriched scene has low confidence ({confidence:.2f}), skipping")
+                        enriched_scene = None
+                    else:
+                        print(f"[search] ✓ Retrieved enriched scene: {enriched_scene.get('location', 'unknown')} (confidence: {confidence:.2f})")
+            except Exception as e:
+                print(f"[search] Warning: Could not retrieve enriched scene: {e}")
+    
+    # 7) Generate LLM response (pass enriched scene so LLM can answer even without subtitle hits)
+    answer = generate_response(query, hits, t_now, spoiler_mode, film_id, enriched_scene)
 
     return AskResponse(
         answer=answer,
@@ -459,7 +822,8 @@ def search(query: str, film_id: str, t_now: float, spoiler_mode: str, top_k: int
         spoiler_mode=spoiler_mode,
         top_k=top_k,
         validation=validation,
-        llm_enabled=LLM_ENABLED
+        llm_enabled=LLM_ENABLED,
+        current_scene=enriched_scene
     )
 
 @app.post("/ask", response_model=AskResponse)

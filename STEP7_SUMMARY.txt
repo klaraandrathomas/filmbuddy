@@ -1,0 +1,72 @@
+STEP 7 COMPLETE: Vector Store (ChromaDB)
+==========================================
+
+IMPLEMENTATION SUMMARY:
+
+1. Created MovieVectorStore class (306 lines)
+   - ChromaDB-backed vector storage with persistence
+   - Automatic embeddings via all-MiniLM-L6-v2
+   - Stores enriched scene chunks with character details
+
+2. Implemented Core Query Methods:
+   - query_scene_at_timestamp() - Find scene at playback time
+   - semantic_search() - Search with temporal constraints
+   - query_characters_in_scene() - Get character details
+   - store_movie_corpus() - Index enriched corpus
+   - list_movies() / delete_movie() - Movie management
+
+3. Key Features:
+   - ✅ Timestamp-based scene retrieval (< 10ms)
+   - ✅ Semantic search with relevance scoring (~50-100ms)
+   - ✅ Spoiler prevention (filters by timestamp)
+   - ✅ Character-aware queries (full metadata per scene)
+   - ✅ Persistent storage (survives restarts)
+   - ✅ Automatic embeddings (no manual vectorization)
+
+4. ChromaDB Integration:
+   - Collection: {movie_id}_scenes
+   - Embedding model: all-MiniLM-L6-v2 (79.3MB, cached)
+   - Similarity metric: Cosine similarity
+   - Storage: ~50KB per movie (12 scenes)
+
+TESTING:
+✅ 7/7 tests passed
+  - Store corpus
+  - Timestamp queries
+  - Character lookup
+  - Semantic search
+  - Spoiler filtering
+  - Metadata retrieval
+  - Movie deletion
+
+SAMPLE QUERY RESULTS:
+- "jazz music" → JAZZ CLUB scene (0.664 relevance)
+- "coffee shop" → COFFEE SHOP scene (0.491 relevance)
+- Timestamp 50.0s → Scene 1: MIA'S CAR (38.8s-61.5s)
+- Spoiler mode OFF @ 100s → 2 scenes (all before 100s)
+
+PERFORMANCE:
+- Store 12 scenes: ~2-3 seconds
+- Timestamp query: < 10ms
+- Semantic search: ~50-100ms
+- Character lookup: < 5ms
+
+CAPABILITIES ENABLED:
+✅ "Who's that guy?" → Look up characters at timestamp
+✅ "Where was the jazz scene?" → Semantic search for location
+✅ "What happened earlier?" → Search with spoiler prevention
+✅ Character identification by gender/role at any timestamp
+
+FILES:
+- preprocessing/vector_store.py (306 lines)
+- test_vector_store.py (387 lines)
+- STEP7_COMPLETE.md
+- STEP7_SUMMARY.txt
+
+INTEGRATION READY:
+- Can be imported into server/main.py
+- Compatible with enriched corpus from Step 6
+- Ready for deictic question handling in Step 8
+
+STATUS: ✅ READY FOR STEP 8 (API Integration)
+

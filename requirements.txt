@@ -9,7 +9,7 @@ torch>=2.0.0
 sentence-transformers>=2.2.0
 numpy>=1.24.0
 
-# LLM
+# LLM (Azure OpenAI)
 openai>=1.0.0
 
 # Data processing
@@ -20,3 +20,10 @@ srt>=3.5.0
 
 # Environment management
 python-dotenv>=1.0.0
+
+# Preprocessing pipeline dependencies
+requests>=2.31.0          # TMDB API calls
+aiohttp>=3.8.0            # Async HTTP client for TMDB
+chromadb>=0.4.0           # Vector database
+aiofiles>=23.0.0          # Async file operations
+rapidfuzz>=3.0.0          # Fuzzy string matching for timestamp alignment

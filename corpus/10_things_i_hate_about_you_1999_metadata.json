@@ -1,0 +1,738 @@
+{
+  "movie_id": "10_things_i_hate_about_you_1999",
+  "metadata": {
+    "title": "10 Things I Hate About You",
+    "release_year": 1999,
+    "runtime_seconds": 5820,
+    "genres": [
+      "Comedy",
+      "Romance",
+      "Drama"
+    ],
+    "overview": "On the first day at his new school, Cameron instantly falls for Bianca, the gorgeous girl of his dreams. The only problem is that Bianca is forbidden to date until her ill-tempered, completely un-dateable older sister Kat goes out, too. In an attempt to solve his problem, Cameron singles out the only guy who could possibly be a match for Kat: a mysterious bad boy with a nasty reputation of his own."
+  },
+  "characters": {
+    "ACROSS THE COURTYARD": {
+      "character_name": "ACROSS THE COURTYARD",
+      "full_name": "ACROSS THE COURTYARD",
+      "gender": "unknown",
+      "role": "minor",
+      "description": "Scene direction, not a character.",
+      "occupation": "Unknown",
+      "relationships": {},
+      "actor": null,
+      "profile_image": null,
+      "billing_order": 999
+    },
+    "ACROSS THE ROOM": {
+      "character_name": "ACROSS THE ROOM",
+      "full_name": "ACROSS THE ROOM",
+      "gender": "unknown",
+      "role": "minor",
+      "description": "Scene direction, not a character.",
+      "occupation": "Unknown",
+      "relationships": {},
+      "actor": null,
+      "profile_image": null,
+      "billing_order": 999
+    },
+    "ANOTHER ANGLE": {
+      "character_name": "ANOTHER ANGLE",
+      "full_name": "ANOTHER ANGLE",
+      "gender": "unknown",
+      "role": "minor",
+      "description": "Scene direction, not a character.",
+      "occupation": "Unknown",
+      "relationships": {},
+      "actor": null,
+      "profile_image": null,
+      "billing_order": 999
+    },
+    "AT THE BAR": {
+      "character_name": "AT THE BAR",
+      "full_name": "AT THE BAR",
+      "gender": "unknown",
+      "role": "minor",
+      "description": "Scene direction, not a character.",
+      "occupation": "Unknown",
+      "relationships": {},
+      "actor": null,
+      "profile_image": null,
+      "billing_order": 999
+    },
+    "BACK TO KAT AND MANDELLA": {
+      "character_name": "BACK TO KAT AND MANDELLA",
+      "full_name": "BACK TO KAT AND MANDELLA",
+      "gender": "unknown",
+      "role": "minor",
+      "description": "Scene direction, not a character.",
+      "occupation": "Unknown",
+      "relationships": {},
+      "actor": null,
+      "profile_image": null,
+      "billing_order": 999
+    },
+    "BARTENDER": {
+      "character_name": "BARTENDER",
+      "full_name": "BARTENDER",
+      "gender": "unknown",
+      "role": "minor",
+      "description": "No information provided.",
+      "occupation": "Bartender",
+      "relationships": {},
+      "actor": null,
+      "profile_image": null,
+      "billing_order": 999
+    },
+    "BIANCA": {
+      "character_name": "BIANCA",
+      "full_name": "Bianca Stratford",
+      "gender": "female",
+      "role": "protagonist",
+      "description": "A beautiful sophomore, popular and admired by her peers, and Kat's younger sister.",
+      "occupation": "Student",
+      "relationships": {
+        "KAT": "Older sister",
+        "CHASTITY": "Best friend",
+        "JOEY": "Crush/interest",
+        "WALTER": "Daughter",
+        "SHARON": "Daughter"
+      },
+      "actor": "Larisa Oleynik",
+      "profile_image": "https://image.tmdb.org/t/p/w500/i3W6ztn8kTKAaZoLS77Tz9GhP7C.jpg",
+      "billing_order": 3
+    },
+    "BIANCA AND WALTER": {
+      "character_name": "BIANCA AND WALTER",
+      "full_name": "BIANCA AND WALTER",
+      "gender": "unknown",
+      "role": "minor",
+      "description": "Scene direction, not a character.",
+      "occupation": "Unknown",
+      "relationships": {},
+      "actor": null,
+      "profile_image": null,
+      "billing_order": 999
+    },
+    "BOGEY": {
+      "character_name": "BOGEY",
+      "full_name": "BOGEY",
+      "gender": "unknown",
+      "role": "minor",
+      "description": "No information provided.",
+      "occupation": "Unknown",
+      "relationships": {},
+      "actor": null,
+      "profile_image": null,
+      "billing_order": 999
+    },
+    "BOY": {
+      "character_name": "BOY",
+      "full_name": "BOY",
+      "gender": "male",
+      "role": "minor",
+      "description": "A student who admires Bianca.",
+      "occupation": "Student",
+      "relationships": {
+        "BIANCA": "Admires her"
+      },
+      "actor": null,
+      "profile_image": null,
+      "billing_order": 999
+    },
+    "BRUCE": {
+      "character_name": "BRUCE",
+      "full_name": "BRUCE",
+      "gender": "unknown",
+      "role": "minor",
+      "description": "No information provided.",
+      "occupation": "Unknown",
+      "relationships": {},
+      "actor": null,
+      "profile_image": null,
+      "billing_order": 999
+    },
+    "CAMERON": {
+      "character_name": "CAMERON",
+      "full_name": "Cameron James",
+      "gender": "male",
+      "role": "protagonist",
+      "description": "A clean-cut, easy-going new senior at Padua High, smitten with Bianca.",
+      "occupation": "Student",
+      "relationships": {
+        "BIANCA": "Romantic interest",
+        "MICHAEL": "Friend",
+        "MISS PERKY": "Guidance counselor"
+      },
+      "actor": "Joseph Gordon-Levitt",
+      "profile_image": "https://image.tmdb.org/t/p/w500/z2FA8js799xqtfiFjBTicFYdfk.jpg",
+      "billing_order": 2
+    },
+    "CHASTITY": {
+      "character_name": "CHASTITY",
+      "full_name": "Chastity",
+      "gender": "female",
+      "role": "supporting",
+      "description": "Bianca's less extraordinary but cute friend, often seen at Bianca's side.",
+      "occupation": "Student",
+      "relationships": {
+        "BIANCA": "Best friend"
+      },
+      "actor": "Gabrielle Union",
+      "profile_image": "https://image.tmdb.org/t/p/w500/toeSCybsYufRKfgz77AKy4C8axD.jpg",
+      "billing_order": 7
+    },
+    "CLEM": {
+      "character_name": "CLEM",
+      "full_name": "CLEM",
+      "gender": "unknown",
+      "role": "minor",
+      "description": "No information provided.",
+      "occupation": "Unknown",
+      "relationships": {},
+      "actor": null,
+      "profile_image": null,
+      "billing_order": 999
+    },
+    "COHORT": {
+      "character_name": "COHORT",
+      "full_name": "COHORT",
+      "gender": "male",
+      "role": "minor",
+      "description": "One of Joey's friends who points out Bianca and Chastity to Joey.",
+      "occupation": "Student",
+      "relationships": {
+        "JOEY": "Friend"
+      },
+      "actor": null,
+      "profile_image": null,
+      "billing_order": 999
+    },
+    "COWBOY": {
+      "character_name": "COWBOY",
+      "full_name": "COWBOY",
+      "gender": "male",
+      "role": "minor",
+      "description": "Students who dress as cowboys, part of a school clique.",
+      "occupation": "Student",
+      "relationships": {},
+      "actor": null,
+      "profile_image": null,
+      "billing_order": 999
+    },
+    "DEREK": {
+      "character_name": "DEREK",
+      "full_name": "Derek",
+      "gender": "male",
+      "role": "minor",
+      "description": "A stoned student with long dreads, part of the 'White Rastae' clique.",
+      "occupation": "Student",
+      "relationships": {
+        "MICHAEL": "Friend"
+      },
+      "actor": "Terence Heuston",
+      "profile_image": null,
+      "billing_order": 14
+    },
+    "END": {
+      "character_name": "END",
+      "full_name": "END",
+      "gender": "unknown",
+      "role": "minor",
+      "description": "Scene direction, not a character.",
+      "occupation": "Unknown",
+      "relationships": {},
+      "actor": null,
+      "profile_image": null,
+      "billing_order": 999
+    },
+    "EXT": {
+      "character_name": "EXT",
+      "full_name": "EXT",
+      "gender": "unknown",
+      "role": "minor",
+      "description": "Scene direction, not a character.",
+      "occupation": "Unknown",
+      "relationships": {},
+      "actor": null,
+      "profile_image": null,
+      "billing_order": 999
+    },
+    "GIRL": {
+      "character_name": "GIRL",
+      "full_name": "GIRL",
+      "gender": "female",
+      "role": "minor",
+      "description": "A student who admires Bianca's shoes.",
+      "occupation": "Student",
+      "relationships": {
+        "BIANCA": "Admires her"
+      },
+      "actor": null,
+      "profile_image": null,
+      "billing_order": 999
+    },
+    "GUY": {
+      "character_name": "GUY",
+      "full_name": "GUY",
+      "gender": "unknown",
+      "role": "minor",
+      "description": "No information provided.",
+      "occupation": "Unknown",
+      "relationships": {},
+      "actor": null,
+      "profile_image": null,
+      "billing_order": 999
+    },
+    "HIS POV": {
+      "character_name": "HIS POV",
+      "full_name": "HIS POV",
+      "gender": "unknown",
+      "role": "minor",
+      "description": "Scene direction, not a character.",
+      "occupation": "Unknown",
+      "relationships": {},
+      "actor": null,
+      "profile_image": null,
+      "billing_order": 999
+    },
+    "I WILL BE": {
+      "character_name": "I WILL BE",
+      "full_name": "I WILL BE",
+      "gender": "unknown",
+      "role": "minor",
+      "description": "Scene direction, not a character.",
+      "occupation": "Unknown",
+      "relationships": {},
+      "actor": null,
+      "profile_image": null,
+      "billing_order": 999
+    },
+    "IN THE CLASSROOM": {
+      "character_name": "IN THE CLASSROOM",
+      "full_name": "IN THE CLASSROOM",
+      "gender": "unknown",
+      "role": "minor",
+      "description": "Scene direction, not a character.",
+      "occupation": "Unknown",
+      "relationships": {},
+      "actor": null,
+      "profile_image": null,
+      "billing_order": 999
+    },
+    "INSIDE": {
+      "character_name": "INSIDE",
+      "full_name": "INSIDE",
+      "gender": "unknown",
+      "role": "minor",
+      "description": "Scene direction, not a character.",
+      "occupation": "Unknown",
+      "relationships": {},
+      "actor": null,
+      "profile_image": null,
+      "billing_order": 999
+    },
+    "JOCK": {
+      "character_name": "JOCK",
+      "full_name": "JOCK",
+      "gender": "male",
+      "role": "minor",
+      "description": "Athletic students, part of the 'beautiful people' clique.",
+      "occupation": "Student",
+      "relationships": {},
+      "actor": null,
+      "profile_image": null,
+      "billing_order": 999
+    },
+    "JOEY": {
+      "character_name": "JOEY",
+      "full_name": "Joey Dorsey",
+      "gender": "male",
+      "role": "antagonist",
+      "description": "A well-muscled jock and model, arrogant and often mocking Kat, interested in Bianca.",
+      "occupation": "Student/Model",
+      "relationships": {
+        "BIANCA": "Romantic interest",
+        "KAT": "Antagonistic classmate",
+        "COHORT": "Friend",
+        "CHASTITY": "Acquaintance"
+      },
+      "actor": "Andrew Keegan",
+      "profile_image": "https://image.tmdb.org/t/p/w500/4QWgKVO8tgOiyzxZeGoGfVLJcOo.jpg",
+      "billing_order": 5
+    },
+    "KAT": {
+      "character_name": "KAT",
+      "full_name": "Katarina Stratford",
+      "gender": "female",
+      "role": "protagonist",
+      "description": "An intelligent, outspoken senior, Bianca's older sister, known for her temper and independence.",
+      "occupation": "Student",
+      "relationships": {
+        "BIANCA": "Younger sister",
+        "MANDELLA": "Friend",
+        "JOEY": "Antagonistic classmate",
+        "WALTER": "Daughter",
+        "SHARON": "Daughter",
+        "MISS PERKY": "Guidance counselor"
+      },
+      "actor": "Julia Stiles",
+      "profile_image": "https://image.tmdb.org/t/p/w500/okcblz7pqeapHorLvxtxd3iNNic.jpg",
+      "billing_order": 1
+    },
+    "KID": {
+      "character_name": "KID",
+      "full_name": "KID",
+      "gender": "unknown",
+      "role": "minor",
+      "description": "No information provided.",
+      "occupation": "Unknown",
+      "relationships": {},
+      "actor": null,
+      "profile_image": null,
+      "billing_order": 999
+    },
+    "LEAD SINGER": {
+      "character_name": "LEAD SINGER",
+      "full_name": "LEAD SINGER",
+      "gender": "unknown",
+      "role": "minor",
+      "description": "No information provided.",
+      "occupation": "Unknown",
+      "relationships": {},
+      "actor": null,
+      "profile_image": null,
+      "billing_order": 999
+    },
+    "MANDELIA": {
+      "character_name": "MANDELIA",
+      "full_name": "Mandella",
+      "gender": "female",
+      "role": "supporting",
+      "description": "A waif-like senior girl obsessed with Shakespeare, Kat's friend.",
+      "occupation": "Student",
+      "relationships": {
+        "KAT": "Friend"
+      },
+      "actor": "Susan May Pratt",
+      "profile_image": "https://image.tmdb.org/t/p/w500/vKbXvIN6iSftS4c6n8xAQFHpJ0z.jpg",
+      "billing_order": 6
+    },
+    "MANDELLA": {
+      "character_name": "MANDELLA",
+      "full_name": "Mandella",
+      "gender": "female",
+      "role": "supporting",
+      "description": "A senior girl, Shakespeare enthusiast, close friend of Kat.",
+      "occupation": "Student",
+      "relationships": {
+        "KAT": "Friend"
+      },
+      "actor": null,
+      "profile_image": null,
+      "billing_order": 999
+    },
+    "MICHAEL": {
+      "character_name": "MICHAEL",
+      "full_name": "Michael Eckman",
+      "gender": "male",
+      "role": "supporting",
+      "description": "A lanky, brainy senior, Cameron's friend and guide to Padua High.",
+      "occupation": "Student",
+      "relationships": {
+        "CAMERON": "Friend",
+        "DEREK": "Friend"
+      },
+      "actor": "David Krumholtz",
+      "profile_image": "https://image.tmdb.org/t/p/w500/2vaimzfyPQVxZGHbQS5M3z3tZw0.jpg",
+      "billing_order": 4
+    },
+    "MISCREANT": {
+      "character_name": "MISCREANT",
+      "full_name": "MISCREANT",
+      "gender": "unknown",
+      "role": "minor",
+      "description": "No information provided.",
+      "occupation": "Unknown",
+      "relationships": {},
+      "actor": null,
+      "profile_image": null,
+      "billing_order": 999
+    },
+    "MISS PERKY": {
+      "character_name": "MISS PERKY",
+      "full_name": "Miss Perky",
+      "gender": "female",
+      "role": "supporting",
+      "description": "The impossibly cheery guidance counselor at Padua High.",
+      "occupation": "Guidance Counselor",
+      "relationships": {
+        "CAMERON": "Student",
+        "KAT": "Student",
+        "PATRICK": "Student"
+      },
+      "actor": "Allison Janney",
+      "profile_image": "https://image.tmdb.org/t/p/w500/hpBKWV1jjoXQbr1s0iUZTSvw582.jpg",
+      "billing_order": 10
+    },
+    "MR. CHAPIN": {
+      "character_name": "MR. CHAPIN",
+      "full_name": "Mr. Chapin",
+      "gender": "male",
+      "role": "minor",
+      "description": "No information provided.",
+      "occupation": "Unknown",
+      "relationships": {},
+      "actor": "David Leisure",
+      "profile_image": "https://image.tmdb.org/t/p/w500/68b4IbVAifraTXVeV53uwfiu4Io.jpg",
+      "billing_order": 11
+    },
+    "MRS. BLAISE": {
+      "character_name": "MRS. BLAISE",
+      "full_name": "Mrs. Blaise",
+      "gender": "female",
+      "role": "supporting",
+      "description": "The English teacher, often overwhelmed by her students.",
+      "occupation": "English Teacher",
+      "relationships": {
+        "KAT": "Student",
+        "JOEY": "Student"
+      },
+      "actor": null,
+      "profile_image": null,
+      "billing_order": 999
+    },
+    "NEAR THE STAGE": {
+      "character_name": "NEAR THE STAGE",
+      "full_name": "NEAR THE STAGE",
+      "gender": "unknown",
+      "role": "minor",
+      "description": "Scene direction, not a character.",
+      "occupation": "Unknown",
+      "relationships": {},
+      "actor": null,
+      "profile_image": null,
+      "billing_order": 999
+    },
+    "NEARBY": {
+      "character_name": "NEARBY",
+      "full_name": "NEARBY",
+      "gender": "unknown",
+      "role": "minor",
+      "description": "Scene direction, not a character.",
+      "occupation": "Unknown",
+      "relationships": {},
+      "actor": null,
+      "profile_image": null,
+      "billing_order": 999
+    },
+    "ON BIANCA AND CHASTITY": {
+      "character_name": "ON BIANCA AND CHASTITY",
+      "full_name": "ON BIANCA AND CHASTITY",
+      "gender": "unknown",
+      "role": "minor",
+      "description": "Scene direction, not a character.",
+      "occupation": "Unknown",
+      "relationships": {},
+      "actor": null,
+      "profile_image": null,
+      "billing_order": 999
+    },
+    "ON MICHAEL AND MANDELLA": {
+      "character_name": "ON MICHAEL AND MANDELLA",
+      "full_name": "ON MICHAEL AND MANDELLA",
+      "gender": "unknown",
+      "role": "minor",
+      "description": "Scene direction, not a character.",
+      "occupation": "Unknown",
+      "relationships": {},
+      "actor": null,
+      "profile_image": null,
+      "billing_order": 999
+    },
+    "OUTSIDE": {
+      "character_name": "OUTSIDE",
+      "full_name": "OUTSIDE",
+      "gender": "unknown",
+      "role": "minor",
+      "description": "Scene direction, not a character.",
+      "occupation": "Unknown",
+      "relationships": {},
+      "actor": null,
+      "profile_image": null,
+      "billing_order": 999
+    },
+    "PATRICK": {
+      "character_name": "PATRICK",
+      "full_name": "Patrick Verona",
+      "gender": "male",
+      "role": "protagonist",
+      "description": "A sullen, bad-ass senior with a reputation, rumored to have a wild past.",
+      "occupation": "Student",
+      "relationships": {
+        "MISS PERKY": "Guidance counselor",
+        "KAT": "Classmate, potential romantic interest"
+      },
+      "actor": "Heath Ledger",
+      "profile_image": "https://image.tmdb.org/t/p/w500/p2z2bURSg7nuMsN9P2s61e2RvNz.jpg",
+      "billing_order": 0
+    },
+    "PEPE": {
+      "character_name": "PEPE",
+      "full_name": "PEPE",
+      "gender": "unknown",
+      "role": "minor",
+      "description": "No information provided.",
+      "occupation": "Unknown",
+      "relationships": {},
+      "actor": null,
+      "profile_image": null,
+      "billing_order": 999
+    },
+    "SCURVY": {
+      "character_name": "SCURVY",
+      "full_name": "Scurvy",
+      "gender": "male",
+      "role": "minor",
+      "description": "Patrick's crusty-looking crony, identified by his workshirt.",
+      "occupation": "Student",
+      "relationships": {
+        "PATRICK": "Friend"
+      },
+      "actor": "Greg Jackson",
+      "profile_image": null,
+      "billing_order": 12
+    },
+    "SHARON": {
+      "character_name": "SHARON",
+      "full_name": "Sharon Stratford",
+      "gender": "female",
+      "role": "supporting",
+      "description": "Kat and Bianca's mother, a romance novelist.",
+      "occupation": "Romance Novelist",
+      "relationships": {
+        "KAT": "Mother",
+        "BIANCA": "Mother",
+        "WALTER": "Wife"
+      },
+      "actor": null,
+      "profile_image": null,
+      "billing_order": 999
+    },
+    "SKIPPY": {
+      "character_name": "SKIPPY",
+      "full_name": "SKIPPY",
+      "gender": "unknown",
+      "role": "minor",
+      "description": "No information provided.",
+      "occupation": "Unknown",
+      "relationships": {},
+      "actor": null,
+      "profile_image": null,
+      "billing_order": 999
+    },
+    "TEACHER": {
+      "character_name": "TEACHER",
+      "full_name": "Teacher",
+      "gender": "unknown",
+      "role": "minor",
+      "description": "Unnamed teacher in sophomore English class.",
+      "occupation": "Teacher",
+      "relationships": {
+        "BIANCA": "Student",
+        "MANDELLA": "Student"
+      },
+      "actor": null,
+      "profile_image": null,
+      "billing_order": 999
+    },
+    "TREVOR": {
+      "character_name": "TREVOR",
+      "full_name": "TREVOR",
+      "gender": "male",
+      "role": "minor",
+      "description": "No information provided.",
+      "occupation": "Unknown",
+      "relationships": {},
+      "actor": "Cameron Fraser",
+      "profile_image": null,
+      "billing_order": 15
+    },
+    "WALTER": {
+      "character_name": "WALTER",
+      "full_name": "Walter Stratford",
+      "gender": "male",
+      "role": "supporting",
+      "description": "Kat and Bianca's father, a blustery obstetrician.",
+      "occupation": "Obstetrician",
+      "relationships": {
+        "KAT": "Father",
+        "BIANCA": "Father",
+        "SHARON": "Husband"
+      },
+      "actor": "Larry Miller",
+      "profile_image": "https://image.tmdb.org/t/p/w500/ajnXlXG20LJwAwxne8G94ucVj0v.jpg",
+      "billing_order": 8
+    },
+    "BOGEY_LOWENSTIEN": {
+      "character_name": "BOGEY_LOWENSTIEN",
+      "full_name": "Bogey Lowenstien",
+      "gender": "male",
+      "role": "minor",
+      "description": "",
+      "occupation": "Unknown",
+      "relationships": {},
+      "actor": "Kyle Cease",
+      "profile_image": null,
+      "billing_order": 13
+    },
+    "AUDIO_VISUAL_GUY": {
+      "character_name": "AUDIO_VISUAL_GUY",
+      "full_name": "Audio Visual Guy",
+      "gender": "male",
+      "role": "minor",
+      "description": "",
+      "occupation": "Unknown",
+      "relationships": {},
+      "actor": "Eric Riedmann",
+      "profile_image": "https://image.tmdb.org/t/p/w500/kJvnqsXN5zplpRauwaA69EvgXnM.jpg",
+      "billing_order": 16
+    },
+    "BEAUTIFUL_JOCK": {
+      "character_name": "BEAUTIFUL_JOCK",
+      "full_name": "Beautiful Jock",
+      "gender": "male",
+      "role": "minor",
+      "description": "",
+      "occupation": "Unknown",
+      "relationships": {},
+      "actor": "Quinn Maixner",
+      "profile_image": null,
+      "billing_order": 17
+    },
+    "COFFEE_KID": {
+      "character_name": "COFFEE_KID",
+      "full_name": "Coffee Kid",
+      "gender": "male",
+      "role": "minor",
+      "description": "",
+      "occupation": "Unknown",
+      "relationships": {},
+      "actor": "Demegio Kimbrough",
+      "profile_image": null,
+      "billing_order": 18
+    }
+  },
+  "stats": {
+    "total_time": 61.55195713043213,
+    "tmdb_time": 0.3580348491668701,
+    "parse_time": 0.01375579833984375,
+    "character_extraction_time": 17.185178756713867,
+    "alignment_time": 1.568897008895874,
+    "summary_time": 42.414231061935425,
+    "total_scenes": 79,
+    "aligned_scenes": 73,
+    "interpolated_scenes": 6,
+    "total_characters": 50
+  }
+}

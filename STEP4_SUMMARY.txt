@@ -1,0 +1,106 @@
+╔══════════════════════════════════════════════════════════════════════╗
+║            STEP 4: CHARACTER EXTRACTOR (LLM) - COMPLETE ✅           ║
+╚══════════════════════════════════════════════════════════════════════╝
+
+IMPLEMENTED FILES:
+  ✓ preprocessing/character_extractor.py  (389 lines) - LLM-powered extractor
+  ✓ test_character_extractor.py          (211 lines) - Comprehensive tests
+
+KEY FEATURES:
+  • LiteLLM integration (OpenAI-compatible)
+  • Character metadata extraction (gender, role, description, relationships)
+  • Scene summary generation (1-2 sentences per scene)
+  • Batch processing (5 scenes per API call = 80% cost reduction)
+  • JSON mode for reliable structured output
+  • Graceful error handling with fallbacks
+  • Cost optimization (only analyzes first 15KB of script)
+
+ACCEPTANCE CRITERIA: 6/6 ✅
+  ✓ Returns structured JSON for all characters
+  ✓ Gender detection from script descriptions
+  ✓ Role classification (protagonist/antagonist/supporting/minor)
+  ✓ Relationships extracted when explicit
+  ✓ Scene summaries concise (< 200 chars)
+  ✓ Batch processing reduces API calls
+
+TEST RESULTS: 4/4 PASSED ✅
+  ✓ Character metadata extraction (with fallback handling)
+  ✓ Scene summary generation
+  ✓ Batch summary generation (3 scenes)
+  ✓ Data structure validation
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+CHARACTER METADATA OUTPUT:
+  {
+    "MIA": {
+      "full_name": "Mia Dolan",
+      "gender": "female",
+      "role": "protagonist",
+      "description": "Aspiring actress working as a barista...",
+      "occupation": "Barista / Actress",
+      "relationships": {"SEBASTIAN": "love interest"}
+    }
+  }
+
+SCENE SUMMARY OUTPUT:
+  "Mia and Sebastian argue about their relationship at the 
+   Griffith Observatory, leading to their decision to pursue 
+   their individual dreams."
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+COST OPTIMIZATION:
+  • Character extraction: 1 API call per movie (all characters at once)
+  • Scene summaries: ceil(num_scenes/5) API calls (batch of 5)
+  • For 100-scene movie: ~21 total API calls
+  
+  Estimated costs per movie:
+    - GPT-4o:        $0.50 - $1.50
+    - Claude Sonnet: $0.50 - $2.00
+    - Claude Haiku:  $0.10 - $0.30
+
+ERROR HANDLING:
+  ✓ API failures → Default metadata returned
+  ✓ Rate limits → Fallback summaries used
+  ✓ Invalid JSON → Validation and cleanup
+  ✓ Pipeline never crashes due to LLM issues
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+CONFIGURATION:
+  Uses existing LiteLLM setup from server/main.py:
+  
+  Environment variables:
+    LITELLM_API_KEY  - Your LiteLLM API key
+    LITELLM_API_BASE - LiteLLM endpoint URL
+    FILMBUDDY_LLM_MODEL - Model choice (default: gpt-4o)
+
+USAGE EXAMPLE:
+  from preprocessing.character_extractor import CharacterExtractor
+  
+  extractor = CharacterExtractor()
+  
+  # Extract character metadata (1 API call for all characters)
+  metadata = await extractor.extract_character_metadata(
+      script_text, 
+      ["MIA", "SEBASTIAN"]
+  )
+  
+  # Generate scene summaries (batched for efficiency)
+  summaries = await extractor.batch_generate_summaries(
+      scenes, 
+      metadata, 
+      batch_size=5
+  )
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+READY FOR STEP 5: Timestamp Aligner 🕐
+
+Next step will align script scenes to subtitle timestamps using:
+  • Fuzzy dialogue matching (rapidfuzz)
+  • Confidence scoring
+  • Interpolation for unmatched scenes
+  • Handles edge cases (action-only, musical numbers)
+

@@ -1,0 +1,86 @@
+╔══════════════════════════════════════════════════════════════════════╗
+║                  STEP 3: SCRIPT PARSER - COMPLETE ✅                 ║
+╚══════════════════════════════════════════════════════════════════════╝
+
+IMPLEMENTED FILES:
+  ✓ preprocessing/script_parser.py  (318 lines) - Full screenplay parser
+  ✓ test_script_parser.py           (193 lines) - Comprehensive tests
+
+KEY FEATURES:
+  • Detects scene boundaries (INT./EXT./INT/EXT/I/E)
+  • Extracts locations from scene headers
+  • Identifies time of day (DAY/NIGHT/CONTINUOUS/etc)
+  • Finds all speaking characters per scene
+  • Parses dialogue with character attribution
+  • Handles V.O., O.S., CONT'D extensions
+  • Captures parenthetical directions
+  • Separates action lines from dialogue
+  • Preserves raw scene text
+
+ACCEPTANCE CRITERIA: 6/6 ✅
+  ✓ Splits script into scenes at INT./EXT. markers
+  ✓ Extracts location from all scene headers
+  ✓ Finds all speaking characters in each scene
+  ✓ Handles V.O., O.S., CONT'D extensions correctly
+  ✓ Action lines captured separately from dialogue
+  ✓ Parentheticals associated with correct dialogue line
+
+TEST RESULTS: 10/10 PASSED ✅
+  ✓ Scene detection (5 scenes found)
+  ✓ Scene header parsing (INT. COFFEE SHOP - DAY)
+  ✓ INT/EXT scene handling (INT./EXT. CAR)
+  ✓ Character extraction (MIA, MANAGER, SEBASTIAN)
+  ✓ V.O. handling (SEBASTIAN (V.O.))
+  ✓ Dialogue parsing (4 lines in scene 1)
+  ✓ Parenthetical handling ((defensive))
+  ✓ Action line parsing (4 action lines)
+  ✓ CONTINUOUS time handling
+  ✓ Action-only scenes
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+INPUT FORMAT: Plain Text (.txt)
+  • Scene headers: ALL CAPS, starts with INT./EXT.
+  • Character names: ALL CAPS, centered (10+ spaces)
+  • Dialogue: Regular text after character names
+  • Action: Left-aligned description
+  • Parentheticals: (in parentheses)
+
+OUTPUT FORMAT: Structured Scene Dictionaries
+  • scene_id, scene_header, location, time_of_day
+  • int_ext (INT/EXT/INT/EXT)
+  • characters (list of speakers)
+  • dialogue (list with character, text, parenthetical)
+  • action_lines (list of descriptions)
+  • raw_text (original scene text)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+USAGE EXAMPLE:
+
+    from preprocessing.script_parser import ScriptParser
+    
+    # Read screenplay
+    with open("scripts/lalaland.txt", "r") as f:
+        script_text = f.read()
+    
+    # Parse into scenes
+    parser = ScriptParser()
+    scenes = parser.parse_script(script_text)
+    
+    # Access structured data
+    for scene in scenes:
+        print(f"Scene {scene['scene_id']}: {scene['location']}")
+        print(f"  Characters: {', '.join(scene['characters'])}")
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+READY FOR STEP 4: Character Extractor (LLM-Powered) 🤖
+
+Next step will use LLM (via LiteLLM) to:
+  • Extract character metadata (gender, role, description)
+  • Identify character relationships
+  • Generate scene summaries
+  • Batch API calls for cost efficiency
+  • Use same LiteLLM config as existing server
+
