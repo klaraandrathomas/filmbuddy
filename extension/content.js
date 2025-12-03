@@ -30,7 +30,8 @@ if (window.__filmbuddyInjected) {
     messages: [],
     hideTimeout: null,
     lastUrl: null,  // Track URL to detect navigation
-    inputFocused: false  // Track input focus state
+    inputFocused: false,  // Track input focus state
+    videoWasPlaying: false  // Track if video has started playing
   };
 
   // ========== STYLES ==========
@@ -60,21 +61,39 @@ if (window.__filmbuddyInjected) {
       padding: 0;
     }
 
-    .fb-container {
+   .fb-container {
+      position: relative;
       display: flex;
       flex-direction: column;
-      height: 100%;
-      background: rgba(0, 0, 0, 0.4);
+      height: calc(100vh - 64px);   /* leave top/bottom breathing room */
+      margin: 32px 16px;            /* inset from edges */
+      background: rgba(0, 0, 0, 0.35);
       backdrop-filter: blur(12px);
       -webkit-backdrop-filter: blur(12px);
-      border-left: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 16px;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      box-shadow: 0 18px 40px rgba(0, 0, 0, 0.5);
       color: #e0e0e0;
+      overflow: hidden;             /* round header/chat/input together */
+    }
+
+    .fb-inner {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      margin: 16px;
+      padding: 16px;
+      background: rgba(20, 20, 20, 0.35);
+      border-radius: 14px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      overflow: hidden;
+      gap: 12px;
     }
 
     .fb-header {
-      padding: 20px 20px 16px;
-      background: rgba(0, 0, 0, 0.25);
-      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 8px 4px 8px;
+      background: transparent;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
       flex-shrink: 0;
     }
 
@@ -82,11 +101,11 @@ if (window.__filmbuddyInjected) {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin-bottom: 18px;
+      margin: 0 12px 12px 12px;
     }
 
     .fb-title {
-      font-size: 20px;
+      font-size: 24px;
       font-weight: 600;
       color: #fff;
       letter-spacing: -0.3px;
@@ -120,6 +139,7 @@ if (window.__filmbuddyInjected) {
       display: flex;
       align-items: center;
       gap: 12px;
+      margin: 0 12px;
     }
 
     .fb-select {
@@ -200,44 +220,47 @@ if (window.__filmbuddyInjected) {
     .fb-chat {
       flex: 1;
       overflow-y: auto;
-      padding: 20px;
+      padding: 8px 4px;
       display: flex;
       flex-direction: column;
-      gap: 16px;
+      gap: 14px;
+      background: transparent;
     }
 
     .fb-chat::-webkit-scrollbar {
-      width: 6px;
+      width: 5px;
     }
 
     .fb-chat::-webkit-scrollbar-thumb {
-      background: rgba(255, 255, 255, 0.2);
+      background: rgba(255, 255, 255, 0.15);
       border-radius: 3px;
     }
 
     .fb-welcome {
-      background: rgba(255, 255, 255, 0.08);
-      padding: 18px;
-      border-radius: 12px;
-      border: 1px solid rgba(255, 255, 255, 0.12);
-      font-size: 15px;
+      background: rgba(255, 255, 255, 0.06);
+      padding: 16px;
+      margin: 8px 16px;
+      border-radius: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      font-size: 14px;
       line-height: 1.6;
     }
 
     .fb-welcome-sub {
-      color: rgba(255, 255, 255, 0.5);
-      font-size: 13px;
-      margin-top: 10px;
+      color: rgba(255, 255, 255, 0.45);
+      font-size: 12px;
+      margin-top: 8px;
     }
 
     .fb-message {
-      max-width: 90%;
-      padding: 14px 18px;
+      max-width: 88%;
+      padding: 12px 16px;
       border-radius: 12px;
-      font-size: 15px;
+      font-size: 14px;
       line-height: 1.6;
       animation: fb-msg-in 0.25s ease-out;
       word-wrap: break-word;
+      overflow-wrap: anywhere;
     }
 
     @keyframes fb-msg-in {
@@ -247,22 +270,26 @@ if (window.__filmbuddyInjected) {
 
     .fb-message.user {
       align-self: flex-end;
-      background: rgba(255, 255, 255, 0.15);
-      border: 1px solid rgba(255, 255, 255, 0.2);
+      margin-right: 16px;
+      margin-left: 16px;
+      background: rgba(255, 255, 255, 0.12);
+      border: 1px solid rgba(255, 255, 255, 0.15);
       color: #fff;
       border-bottom-right-radius: 4px;
     }
 
     .fb-message.assistant {
       align-self: flex-start;
-      background: rgba(0, 0, 0, 0.3);
-      border: 1px solid rgba(255, 255, 255, 0.1);
+      margin-left: 16px;
+      margin-right: 16px;
+      background: rgba(0, 0, 0, 0.28);
+      border: 1px solid rgba(255, 255, 255, 0.08);
       border-bottom-left-radius: 4px;
     }
 
     .fb-message.error {
-      background: rgba(239, 68, 68, 0.2);
-      border: 1px solid rgba(239, 68, 68, 0.35);
+      background: rgba(239, 68, 68, 0.18);
+      border: 1px solid rgba(239, 68, 68, 0.3);
       color: #fca5a5;
     }
 
@@ -293,29 +320,30 @@ if (window.__filmbuddyInjected) {
     }
 
     .fb-input-area {
-      padding: 16px 20px;
-      background: rgba(0, 0, 0, 0.25);
-      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 8px 4px 4px;
+      background: transparent;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
       flex-shrink: 0;
     }
 
     .fb-input-wrapper {
       display: flex;
-      gap: 12px;
-      background: rgba(255, 255, 255, 0.1);
+      gap: 10px;
+      background: rgba(255, 255, 255, 0.08);
       border-radius: 12px;
-      padding: 12px 12px 12px 18px;
-      border: 1px solid rgba(255, 255, 255, 0.15);
+      padding: 10px 10px 10px 16px;
+      margin: 0 16px 8px 16px;
+      border: 1px solid rgba(255, 255, 255, 0.18);
       transition: border-color 0.2s, background 0.2s;
     }
 
     .fb-input-wrapper:hover {
-      background: rgba(255, 255, 255, 0.12);
+      background: rgba(255, 255, 255, 0.1);
     }
 
     .fb-input-wrapper:focus-within {
-      border-color: rgba(255, 255, 255, 0.3);
-      background: rgba(255, 255, 255, 0.12);
+      border-color: rgba(255, 255, 255, 0.28);
+      background: rgba(255, 255, 255, 0.1);
     }
 
     .fb-input {
@@ -323,7 +351,7 @@ if (window.__filmbuddyInjected) {
       background: none;
       border: none;
       color: #fff;
-      font-size: 15px;
+      font-size: 14px;
       font-family: inherit;
       resize: none;
       max-height: 100px;
@@ -393,41 +421,43 @@ if (window.__filmbuddyInjected) {
     overlay.id = 'filmbuddy-overlay';
     overlay.innerHTML = `
       <div class="fb-container">
-        <div class="fb-header">
-          <div class="fb-header-top">
-            <span class="fb-title">FilmBuddy</span>
-            <button class="fb-pin-btn" id="fb-pin" title="Pin panel">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                <circle cx="12" cy="12" r="3"/>
-                <path d="M12 2v4m0 12v4m-10-10h4m12 0h4"/>
-              </svg>
-            </button>
+        <div class="fb-inner">
+          <div class="fb-header">
+            <div class="fb-header-top">
+              <span class="fb-title">FilmBuddy</span>
+              <button class="fb-pin-btn" id="fb-pin" title="Pin panel">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                  <circle cx="12" cy="12" r="3"/>
+                  <path d="M12 2v4m0 12v4m-10-10h4m12 0h4"/>
+                </svg>
+              </button>
+            </div>
+            <div class="fb-controls">
+              <select class="fb-select" id="fb-film-select">
+                <option value="">Loading...</option>
+              </select>
+              <span class="fb-timestamp" id="fb-timestamp">0:00</span>
+              <label class="fb-spoiler">
+                <input type="checkbox" id="fb-spoiler-toggle">
+                <span>Spoilers</span>
+              </label>
+            </div>
           </div>
-          <div class="fb-controls">
-            <select class="fb-select" id="fb-film-select">
-              <option value="">Loading...</option>
-            </select>
-            <span class="fb-timestamp" id="fb-timestamp">0:00</span>
-            <label class="fb-spoiler">
-              <input type="checkbox" id="fb-spoiler-toggle">
-              <span>Spoilers</span>
-            </label>
+          <div class="fb-chat" id="fb-chat">
+            <div class="fb-welcome">
+              Ask me anything about what you're watching!
+              <div class="fb-welcome-sub">I won't spoil what's ahead.</div>
+            </div>
           </div>
-        </div>
-        <div class="fb-chat" id="fb-chat">
-          <div class="fb-welcome">
-            Ask me anything about what you're watching!
-            <div class="fb-welcome-sub">I won't spoil what's ahead.</div>
-          </div>
-        </div>
-        <div class="fb-input-area">
-          <div class="fb-input-wrapper">
-            <textarea class="fb-input" id="fb-input" placeholder="Ask about the movie..." rows="1"></textarea>
-            <button class="fb-send-btn" id="fb-send">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
-              </svg>
-            </button>
+          <div class="fb-input-area">
+            <div class="fb-input-wrapper">
+              <textarea class="fb-input" id="fb-input" placeholder="Ask about the movie..." rows="1"></textarea>
+              <button class="fb-send-btn" id="fb-send">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+                </svg>
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -547,6 +577,12 @@ if (window.__filmbuddyInjected) {
     if (overlay && !state.isVisible) {
       overlay.classList.add('visible');
       state.isVisible = true;
+
+      // Try to detect movie when panel opens (if not already matched)
+      if (!state.matchedFilmId || state.isUnknownMovie) {
+        state.detectedTitle = null; // Reset to retry
+        detectAndMatchMovie();
+      }
     }
   }
 
@@ -633,18 +669,34 @@ if (window.__filmbuddyInjected) {
     setInterval(updateTimestamp, 1000);
     updateTimestamp();
 
-    // Check for URL changes every 2 seconds (only re-detect on navigation)
+    // Check for URL changes and video state every 2 seconds
     state.lastUrl = window.location.href;
-    setInterval(checkForNavigation, 2000);
+    state.videoWasPlaying = false;
+    setInterval(checkForChanges, 2000);
   }
 
-  function checkForNavigation() {
+  function checkForChanges() {
     const currentUrl = window.location.href;
+
+    // Check for URL change
     if (currentUrl !== state.lastUrl) {
       console.log('[FilmBuddy] URL changed, re-detecting movie');
       state.lastUrl = currentUrl;
-      state.detectedTitle = null; // Reset so detection runs fresh
+      state.detectedTitle = null;
+      state.videoWasPlaying = false;
       detectAndMatchMovie();
+      return;
+    }
+
+    // Check if video started playing (and we haven't detected yet)
+    const video = findVideoElement();
+    if (video && video.currentTime > 5 && !state.videoWasPlaying) {
+      state.videoWasPlaying = true;
+      if (!state.detectedTitle || state.isUnknownMovie) {
+        console.log('[FilmBuddy] Video playing, attempting detection');
+        state.detectedTitle = null; // Reset to retry
+        detectAndMatchMovie();
+      }
     }
   }
 
@@ -705,13 +757,21 @@ if (window.__filmbuddyInjected) {
     }
   }
 
-  async function detectAndMatchMovie() {
-    // Skip if already detected for this URL
-    if (state.detectedTitle) return;
+  async function detectAndMatchMovie(retryCount = 0) {
+    // Skip if already successfully matched to a known film
+    if (state.detectedTitle && state.matchedFilmId && !state.isUnknownMovie) {
+      return;
+    }
 
     const title = detectMovieTitle();
     if (!title) {
       console.log('[FilmBuddy] No title found on page');
+      // Retry up to 3 times with increasing delays
+      if (retryCount < 3) {
+        const delay = (retryCount + 1) * 2000; // 2s, 4s, 6s
+        console.log(`[FilmBuddy] Retrying detection in ${delay/1000}s...`);
+        setTimeout(() => detectAndMatchMovie(retryCount + 1), delay);
+      }
       return;
     }
 
@@ -727,11 +787,11 @@ if (window.__filmbuddyInjected) {
         state.matchedFilmId = data.matched_film_id;
         state.isUnknownMovie = false;
         if (select) select.value = data.matched_film_id;
-        console.log('[FilmBuddy] Matched to:', data.matched_film_id);
+        console.log('[FilmBuddy] Matched to:', data.matched_film_id, '(confidence:', data.confidence, ')');
       } else {
         state.isUnknownMovie = true;
         if (select) select.value = '__unknown__';
-        console.log('[FilmBuddy] No match found, using general chat');
+        console.log('[FilmBuddy] No match found for "' + title + '", using general chat');
       }
     } catch (error) {
       console.error('[FilmBuddy] Match failed:', error);
