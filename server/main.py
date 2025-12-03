@@ -607,9 +607,12 @@ def list_films():
     films = []
     for film_id, data in film_data.items():
         payloads = data["payloads"]
+        # Try to get a display name from the film_id
+        display_name = film_id.replace('_', ' ').title()
         has_enriched = vector_store and vector_store.has_movie(film_id)
         films.append({
             "film_id": film_id,
+            "display_name": display_name,
             "num_chunks": len(payloads),
             "duration_seconds": max(r["t_end"] for r in payloads) if payloads else 0,
             "has_enriched_corpus": has_enriched
@@ -676,6 +679,132 @@ def get_movie_characters(movie_id: str):
         )
     
     return {"movie_id": movie_id, "characters": characters}
+
+# ---------- Movie Title Matching ----------
+def normalize_title(title: str) -> str:
+    """Normalize a title for comparison."""
+    import re
+    # Lowercase
+    title = title.lower()
+    # Remove punctuation except spaces
+    title = re.sub(r'[^\w\s]', '', title)
+    # Remove extra whitespace
+    title = ' '.join(title.split())
+    return title
+
+def compute_title_similarity(title1: str, title2: str) -> float:
+    """Compute similarity between two titles using simple token overlap."""
+    tokens1 = set(normalize_title(title1).split())
+    tokens2 = set(normalize_title(title2).split())
+
+    if not tokens1 or not tokens2:
+        return 0.0
+
+    # Jaccard similarity
+    intersection = len(tokens1 & tokens2)
+    union = len(tokens1 | tokens2)
+
+    return intersection / union if union > 0 else 0.0
+
+@app.get("/match-title")
+def match_title(title: str = Query(..., description="The movie title to match")):
+    """
+    Fuzzy match a detected movie title against available films in the corpus.
+    Returns the best matching film_id and confidence score.
+    """
+    if not title or not title.strip():
+        return {"matched_film_id": None, "confidence": 0.0, "display_name": None}
+
+    title = title.strip()
+    best_match = None
+    best_score = 0.0
+    best_display_name = None
+
+    for film_id in film_data.keys():
+        # Convert film_id to display name for comparison
+        display_name = film_id.replace('_', ' ').title()
+
+        # Compute similarity
+        score = compute_title_similarity(title, display_name)
+
+        # Also try matching against the raw film_id
+        score_raw = compute_title_similarity(title, film_id.replace('_', ' '))
+        score = max(score, score_raw)
+
+        if score > best_score:
+            best_score = score
+            best_match = film_id
+            best_display_name = display_name
+
+    # Only return a match if confidence is above threshold
+    CONFIDENCE_THRESHOLD = 0.4
+
+    if best_score >= CONFIDENCE_THRESHOLD:
+        return {
+            "matched_film_id": best_match,
+            "confidence": round(best_score, 3),
+            "display_name": best_display_name
+        }
+    else:
+        return {
+            "matched_film_id": None,
+            "confidence": round(best_score, 3) if best_score > 0 else 0.0,
+            "display_name": None
+        }
+
+# ---------- General Chat (No RAG) ----------
+class ChatRequest(BaseModel):
+    query: str = Field(..., example="What are some good romantic comedies?")
+    context: Optional[str] = Field(None, description="Optional context about what the user is watching")
+
+class ChatResponse(BaseModel):
+    answer: str
+    llm_enabled: bool
+
+@app.post("/chat", response_model=ChatResponse)
+def general_chat(req: ChatRequest):
+    """
+    General film discussion without RAG context.
+    Used when the user is watching an unknown/unsupported movie.
+    """
+    if not LLM_ENABLED or not openai_client:
+        return ChatResponse(
+            answer="LLM is not configured. Please set OPENAI_API_KEY in your .env file.",
+            llm_enabled=False
+        )
+
+    system_prompt = """You are FilmBuddy, a friendly and knowledgeable movie companion chatbot.
+You help viewers understand and engage with movies and TV shows.
+
+Since you don't have specific context about what the user is currently watching,
+provide helpful general information about films, actors, directors, genres, and filmmaking.
+
+Be conversational and engaging, like a film-enthusiast friend. Keep responses concise but informative."""
+
+    user_prompt = req.query
+    if req.context:
+        user_prompt = f"Context: {req.context}\n\nQuestion: {req.query}"
+
+    try:
+        response = openai_client.chat.completions.create(
+            model=OPENAI_MODEL,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            temperature=0.7,
+            max_tokens=500
+        )
+
+        answer = response.choices[0].message.content
+        return ChatResponse(answer=answer, llm_enabled=True)
+
+    except Exception as e:
+        error_msg = str(e)
+        return ChatResponse(
+            answer=f"Sorry, I encountered an error: {error_msg[:100]}",
+            llm_enabled=True
+        )
 
 # ---------- Core search ----------
 def compute_temporal_score(t_end: float, t_now: float) -> float:

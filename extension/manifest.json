@@ -1,13 +1,11 @@
 {
   "manifest_version": 3,
   "name": "FilmBuddy",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "Your AI movie companion - ask questions about what you're watching without spoilers",
 
   "permissions": [
-    "sidePanel",
     "activeTab",
-    "scripting",
     "storage"
   ],
 
@@ -20,14 +18,6 @@
     "*://*.amazon.com/*",
     "*://*.max.com/*"
   ],
-
-  "side_panel": {
-    "default_path": "sidepanel.html"
-  },
-
-  "background": {
-    "service_worker": "background.js"
-  },
 
   "content_scripts": [
     {
@@ -45,7 +35,7 @@
   ],
 
   "action": {
-    "default_title": "Open FilmBuddy",
+    "default_title": "FilmBuddy",
     "default_icon": {
       "16": "icons/icon16.png",
       "48": "icons/icon48.png",
