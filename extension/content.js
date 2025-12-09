@@ -35,372 +35,409 @@ if (window.__filmbuddyInjected) {
   };
 
   // ========== STYLES ==========
+  // Using high-specificity selectors and !important to override streaming site CSS
   const styles = `
+    /* ===== RESET & BASE ===== */
+    #filmbuddy-overlay,
+    #filmbuddy-overlay *,
+    #filmbuddy-overlay *::before,
+    #filmbuddy-overlay *::after {
+      box-sizing: border-box !important;
+      margin: 0 !important;
+      padding: 0 !important;
+      border: none !important;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+      line-height: 1.5 !important;
+      -webkit-font-smoothing: antialiased !important;
+    }
+
     #filmbuddy-overlay {
-      position: fixed;
-      top: 0;
-      right: 0;
-      width: ${PANEL_WIDTH}px;
-      height: 100vh;
-      z-index: 2147483647;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      font-size: 14px;
-      transform: translateX(100%);
-      transition: transform 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94);
-      pointer-events: none;
+      position: fixed !important;
+      top: 0 !important;
+      right: 0 !important;
+      width: ${PANEL_WIDTH}px !important;
+      height: 100vh !important;
+      z-index: 2147483647 !important;
+      font-size: 14px !important;
+      transform: translateX(100%) !important;
+      transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1) !important;
+      pointer-events: none !important;
     }
 
     #filmbuddy-overlay.visible {
-      transform: translateX(0);
-      pointer-events: auto;
+      transform: translateX(0) !important;
+      pointer-events: auto !important;
     }
 
-    #filmbuddy-overlay * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
+    /* ===== CONTAINER ===== */
+    #filmbuddy-overlay .fb-container {
+      display: flex !important;
+      flex-direction: column !important;
+      height: calc(100vh - 48px) !important;
+      margin: 24px 14px !important;
+      background: rgba(12, 15, 20, 0.85) !important;
+      backdrop-filter: blur(12px) !important;
+      -webkit-backdrop-filter: blur(12px) !important;
+      border-radius: 16px !important;
+      border: 1px solid rgba(255, 255, 255, 0.1) !important;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.5) !important;
+      color: rgba(255, 255, 255, 0.9) !important;
+      overflow: hidden !important;
     }
 
-   .fb-container {
-      position: relative;
-      display: flex;
-      flex-direction: column;
-      height: calc(100vh - 64px);   /* leave top/bottom breathing room */
-      margin: 32px 16px;            /* inset from edges */
-      background: rgba(0, 0, 0, 0.35);
-      backdrop-filter: blur(12px);
-      -webkit-backdrop-filter: blur(12px);
-      border-radius: 16px;
-      border: 1px solid rgba(255, 255, 255, 0.15);
-      box-shadow: 0 18px 40px rgba(0, 0, 0, 0.5);
-      color: #e0e0e0;
-      overflow: hidden;             /* round header/chat/input together */
+    /* ===== HEADER ===== */
+    #filmbuddy-overlay .fb-header {
+      padding: 20px 20px 16px 20px !important;
+      flex-shrink: 0 !important;
+      background: transparent !important;
     }
 
-    .fb-inner {
-      display: flex;
-      flex-direction: column;
-      flex: 1;
-      min-height: 0;
-      margin: 16px;
-      padding: 16px;
-      background: rgba(20, 20, 20, 0.35);
-      border-radius: 14px;
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      overflow: hidden;
+    #filmbuddy-overlay .fb-header-top {
+      display: flex !important;
+      align-items: center !important;
+      justify-content: space-between !important;
+      margin-bottom: 16px !important;
     }
 
-    .fb-header {
-      padding: 8px 4px 8px;
-      background: transparent;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-      flex-shrink: 0;
+    #filmbuddy-overlay .fb-title {
+      font-size: 18px !important;
+      font-weight: 600 !important;
+      color: #ffffff !important;
+      letter-spacing: -0.3px !important;
     }
 
-    .fb-header-top {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin: 0 12px 12px 12px;
+    #filmbuddy-overlay .fb-pin-btn {
+      background: transparent !important;
+      border: none !important;
+      color: rgba(255, 255, 255, 0.3) !important;
+      width: 32px !important;
+      height: 32px !important;
+      min-width: 32px !important;
+      min-height: 32px !important;
+      border-radius: 8px !important;
+      cursor: pointer !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      transition: all 0.15s ease !important;
     }
 
-    .fb-title {
-      font-size: 28px;
-      font-weight: 600;
-      color: #fff;
-      letter-spacing: -0.3px;
+    #filmbuddy-overlay .fb-pin-btn:hover {
+      background: rgba(255, 255, 255, 0.06) !important;
+      color: rgba(255, 255, 255, 0.6) !important;
     }
 
-    .fb-pin-btn {
-      background: rgba(255, 255, 255, 0.1);
-      border: none;
-      color: rgba(255, 255, 255, 0.6);
-      width: 32px;
-      height: 32px;
-      border-radius: 6px;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      transition: all 0.2s;
+    #filmbuddy-overlay .fb-pin-btn.pinned {
+      color: #22d3ee !important;
     }
 
-    .fb-pin-btn:hover {
-      background: rgba(255, 255, 255, 0.15);
-      color: #fff;
+    /* Film selector */
+    #filmbuddy-overlay .fb-select {
+      width: 100% !important;
+      padding: 12px 14px !important;
+      background: rgba(255, 255, 255, 0.06) !important;
+      color: rgba(255, 255, 255, 0.9) !important;
+      border: 1px solid rgba(255, 255, 255, 0.1) !important;
+      border-radius: 10px !important;
+      font-size: 14px !important;
+      font-weight: 500 !important;
+      cursor: pointer !important;
+      transition: all 0.15s ease !important;
+      margin-bottom: 12px !important;
+      appearance: none !important;
+      -webkit-appearance: none !important;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='14' viewBox='0 0 24 24' fill='none' stroke='rgba(255,255,255,0.4)' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E") !important;
+      background-repeat: no-repeat !important;
+      background-position: right 14px center !important;
     }
 
-    .fb-pin-btn.pinned {
-      background: rgba(255, 255, 255, 0.2);
-      color: #fff;
+    #filmbuddy-overlay .fb-select:hover {
+      border-color: rgba(255, 255, 255, 0.18) !important;
+      background-color: rgba(255, 255, 255, 0.1) !important;
     }
 
-    .fb-controls {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      margin: 0 12px;
+    #filmbuddy-overlay .fb-select:focus {
+      outline: none !important;
+      border-color: rgba(34, 211, 238, 0.5) !important;
+      box-shadow: 0 0 0 2px rgba(34, 211, 238, 0.1) !important;
     }
 
-    .fb-select {
-      flex: 1;
-      padding: 10px 14px;
-      background: rgba(255, 255, 255, 0.1);
-      color: #fff;
-      border: 1px solid rgba(255, 255, 255, 0.15);
-      border-radius: 8px;
-      font-size: 14px;
-      cursor: pointer;
-      min-width: 0;
+    /* Meta row: timestamp + spoiler toggle */
+    #filmbuddy-overlay .fb-meta-row {
+      display: flex !important;
+      align-items: center !important;
+      justify-content: space-between !important;
     }
 
-    .fb-select:hover {
-      background: rgba(255, 255, 255, 0.15);
+    #filmbuddy-overlay .fb-timestamp {
+      font-family: 'SF Mono', Monaco, 'Courier New', monospace !important;
+      font-size: 13px !important;
+      font-weight: 500 !important;
+      color: rgba(255, 255, 255, 0.4) !important;
+      background: transparent !important;
     }
 
-    .fb-select:focus {
-      outline: none;
-      border-color: rgba(255, 255, 255, 0.3);
+    #filmbuddy-overlay .fb-spoiler {
+      display: flex !important;
+      align-items: center !important;
+      gap: 8px !important;
+      cursor: pointer !important;
+      font-size: 13px !important;
+      color: rgba(255, 255, 255, 0.45) !important;
+      transition: color 0.15s ease !important;
     }
 
-    .fb-timestamp {
-      font-family: 'SF Mono', Monaco, monospace;
-      font-size: 14px;
-      font-weight: 500;
-      color: #fff;
-      background: rgba(255, 255, 255, 0.1);
-      padding: 10px 14px;
-      border-radius: 8px;
-      border: 1px solid rgba(255, 255, 255, 0.15);
-      flex-shrink: 0;
+    #filmbuddy-overlay .fb-spoiler:hover {
+      color: rgba(255, 255, 255, 0.65) !important;
     }
 
-    .fb-spoiler {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      cursor: pointer;
-      font-size: 13px;
-      color: rgba(255, 255, 255, 0.7);
-      flex-shrink: 0;
+    #filmbuddy-overlay .fb-spoiler span {
+      font-size: 13px !important;
+      color: inherit !important;
     }
 
-    .fb-spoiler input {
-      width: 36px;
-      height: 20px;
-      appearance: none;
-      -webkit-appearance: none;
-      background: rgba(255, 255, 255, 0.15);
-      border-radius: 10px;
-      position: relative;
-      cursor: pointer;
-      transition: background 0.2s;
+    #filmbuddy-overlay .fb-spoiler input {
+      width: 36px !important;
+      height: 20px !important;
+      min-width: 36px !important;
+      min-height: 20px !important;
+      appearance: none !important;
+      -webkit-appearance: none !important;
+      background: rgba(255, 255, 255, 0.12) !important;
+      border-radius: 10px !important;
+      position: relative !important;
+      cursor: pointer !important;
+      transition: background 0.2s ease !important;
+      border: none !important;
     }
 
-    .fb-spoiler input::after {
-      content: '';
-      position: absolute;
-      top: 3px;
-      left: 3px;
-      width: 14px;
-      height: 14px;
-      background: #fff;
-      border-radius: 50%;
-      transition: transform 0.2s;
+    #filmbuddy-overlay .fb-spoiler input::after {
+      content: '' !important;
+      position: absolute !important;
+      top: 2px !important;
+      left: 2px !important;
+      width: 16px !important;
+      height: 16px !important;
+      background: rgba(255, 255, 255, 0.95) !important;
+      border-radius: 50% !important;
+      transition: transform 0.2s ease !important;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.2) !important;
     }
 
-    .fb-spoiler input:checked {
-      background: rgba(245, 158, 11, 0.8);
+    #filmbuddy-overlay .fb-spoiler input:checked {
+      background: #f59e0b !important;
     }
 
-    .fb-spoiler input:checked::after {
-      transform: translateX(16px);
+    #filmbuddy-overlay .fb-spoiler input:checked::after {
+      transform: translateX(16px) !important;
     }
 
-    .fb-chat {
-      flex: 1;
-      min-height: 0;
-      overflow-y: auto;
-      padding: 12px 4px;
-      display: flex;
-      flex-direction: column;
-      gap: 14px;
-      background: transparent;
+    /* ===== DIVIDER ===== */
+    #filmbuddy-overlay .fb-divider {
+      height: 1px !important;
+      min-height: 1px !important;
+      background: rgba(255, 255, 255, 0.06) !important;
+      margin: 0 20px !important;
+      flex-shrink: 0 !important;
     }
 
-    .fb-chat::-webkit-scrollbar {
-      width: 5px;
+    /* ===== CHAT AREA ===== */
+    #filmbuddy-overlay .fb-chat {
+      flex: 1 !important;
+      min-height: 0 !important;
+      overflow-y: auto !important;
+      overflow-x: hidden !important;
+      padding: 20px !important;
+      display: flex !important;
+      flex-direction: column !important;
+      gap: 16px !important;
+      background: transparent !important;
     }
 
-    .fb-chat::-webkit-scrollbar-thumb {
-      background: rgba(255, 255, 255, 0.15);
-      border-radius: 3px;
+    #filmbuddy-overlay .fb-chat::-webkit-scrollbar {
+      width: 5px !important;
     }
 
-    .fb-welcome {
-      background: rgba(255, 255, 255, 0.06);
-      padding: 16px;
-      margin: 8px 16px;
-      border-radius: 10px;
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      font-size: 14px;
-      line-height: 1.6;
+    #filmbuddy-overlay .fb-chat::-webkit-scrollbar-track {
+      background: transparent !important;
     }
 
-    .fb-welcome-sub {
-      color: rgba(255, 255, 255, 0.45);
-      font-size: 12px;
-      margin-top: 8px;
+    #filmbuddy-overlay .fb-chat::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.1) !important;
+      border-radius: 3px !important;
     }
 
-    .fb-message {
-      max-width: 88%;
-      padding: 12px 16px;
-      border-radius: 12px;
-      font-size: 14px;
-      line-height: 1.6;
-      animation: fb-msg-in 0.25s ease-out;
-      word-wrap: break-word;
-      overflow-wrap: anywhere;
+    #filmbuddy-overlay .fb-welcome {
+      font-size: 14px !important;
+      line-height: 1.6 !important;
+      color: rgba(255, 255, 255, 0.7) !important;
+      background: transparent !important;
+    }
+
+    #filmbuddy-overlay .fb-welcome-sub {
+      color: rgba(255, 255, 255, 0.4) !important;
+      font-size: 13px !important;
+      margin-top: 8px !important;
+      line-height: 1.5 !important;
+    }
+
+    #filmbuddy-overlay .fb-message {
+      max-width: 88% !important;
+      padding: 12px 16px !important;
+      border-radius: 12px !important;
+      font-size: 14px !important;
+      line-height: 1.6 !important;
+      animation: fb-msg-in 0.2s ease-out !important;
+      word-wrap: break-word !important;
+      overflow-wrap: anywhere !important;
+      background: transparent !important;
     }
 
     @keyframes fb-msg-in {
-      from { opacity: 0; transform: translateY(8px); }
+      from { opacity: 0; transform: translateY(6px); }
       to { opacity: 1; transform: translateY(0); }
     }
 
-    .fb-message.user {
-      align-self: flex-end;
-      margin-right: 16px;
-      margin-left: 16px;
-      background: rgba(255, 255, 255, 0.12);
-      border: 1px solid rgba(255, 255, 255, 0.15);
-      color: #fff;
-      border-bottom-right-radius: 4px;
+    #filmbuddy-overlay .fb-message.user {
+      align-self: flex-end !important;
+      background: rgba(34, 211, 238, 0.12) !important;
+      color: rgba(255, 255, 255, 0.95) !important;
+      border-bottom-right-radius: 4px !important;
     }
 
-    .fb-message.assistant {
-      align-self: flex-start;
-      margin-left: 16px;
-      margin-right: 16px;
-      background: rgba(0, 0, 0, 0.28);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      border-bottom-left-radius: 4px;
+    #filmbuddy-overlay .fb-message.assistant {
+      align-self: flex-start !important;
+      background: rgba(255, 255, 255, 0.05) !important;
+      color: rgba(255, 255, 255, 0.9) !important;
+      border-bottom-left-radius: 4px !important;
     }
 
-    .fb-message.error {
-      background: rgba(239, 68, 68, 0.18);
-      border: 1px solid rgba(239, 68, 68, 0.3);
-      color: #fca5a5;
+    #filmbuddy-overlay .fb-message.assistant strong {
+      font-weight: 700 !important;
+      color: #22d3ee !important;
     }
 
-    .fb-loading {
-      display: flex;
-      gap: 6px;
-      padding: 14px 18px;
-      align-self: flex-start;
-      background: rgba(0, 0, 0, 0.3);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: 12px;
+    #filmbuddy-overlay .fb-message.error {
+      background: rgba(239, 68, 68, 0.12) !important;
+      color: #fca5a5 !important;
     }
 
-    .fb-loading span {
-      width: 8px;
-      height: 8px;
-      background: rgba(255, 255, 255, 0.5);
-      border-radius: 50%;
-      animation: fb-bounce 1.4s infinite ease-in-out;
+    #filmbuddy-overlay .fb-loading {
+      display: flex !important;
+      gap: 5px !important;
+      padding: 12px 16px !important;
+      align-self: flex-start !important;
+      background: rgba(255, 255, 255, 0.05) !important;
+      border-radius: 12px !important;
     }
 
-    .fb-loading span:nth-child(1) { animation-delay: -0.32s; }
-    .fb-loading span:nth-child(2) { animation-delay: -0.16s; }
+    #filmbuddy-overlay .fb-loading span {
+      width: 6px !important;
+      height: 6px !important;
+      min-width: 6px !important;
+      min-height: 6px !important;
+      background: #22d3ee !important;
+      border-radius: 50% !important;
+      animation: fb-bounce 1.4s infinite ease-in-out !important;
+    }
+
+    #filmbuddy-overlay .fb-loading span:nth-child(1) { animation-delay: -0.32s !important; }
+    #filmbuddy-overlay .fb-loading span:nth-child(2) { animation-delay: -0.16s !important; }
 
     @keyframes fb-bounce {
-      0%, 80%, 100% { transform: scale(0); opacity: 0.3; }
+      0%, 80%, 100% { transform: scale(0.6); opacity: 0.4; }
       40% { transform: scale(1); opacity: 1; }
     }
 
-    .fb-input-area {
-      padding: 8px 4px 4px;
-      background: transparent;
-      border-top: 1px solid rgba(255, 255, 255, 0.08);
-      flex-shrink: 0;
+    /* ===== INPUT AREA ===== */
+    #filmbuddy-overlay .fb-input-area {
+      padding: 16px 20px 20px 20px !important;
+      flex-shrink: 0 !important;
+      background: transparent !important;
     }
 
-    .fb-input-wrapper {
-      display: flex;
-      gap: 10px;
-      background: rgba(255, 255, 255, 0.08);
-      border-radius: 12px;
-      padding: 10px 10px 10px 16px;
-      margin: 0 16px 8px 16px;
-      border: 1px solid rgba(255, 255, 255, 0.18);
-      transition: border-color 0.2s, background 0.2s;
+    #filmbuddy-overlay .fb-input-wrapper {
+      display: flex !important;
+      align-items: flex-end !important;
+      gap: 10px !important;
+      background: rgba(255, 255, 255, 0.06) !important;
+      border-radius: 12px !important;
+      padding: 10px 10px 10px 14px !important;
+      border: 1px solid rgba(255, 255, 255, 0.1) !important;
+      transition: all 0.15s ease !important;
     }
 
-    .fb-input-wrapper:hover {
-      background: rgba(255, 255, 255, 0.1);
+    #filmbuddy-overlay .fb-input-wrapper:focus-within {
+      border-color: rgba(34, 211, 238, 0.4) !important;
+      background: rgba(255, 255, 255, 0.08) !important;
+      box-shadow: 0 0 0 2px rgba(34, 211, 238, 0.08) !important;
     }
 
-    .fb-input-wrapper:focus-within {
-      border-color: rgba(255, 255, 255, 0.28);
-      background: rgba(255, 255, 255, 0.1);
+    #filmbuddy-overlay .fb-input {
+      flex: 1 !important;
+      background: transparent !important;
+      border: none !important;
+      color: rgba(255, 255, 255, 0.95) !important;
+      font-size: 14px !important;
+      font-family: inherit !important;
+      resize: none !important;
+      max-height: 100px !important;
+      min-height: 20px !important;
+      line-height: 1.5 !important;
+      outline: none !important;
     }
 
-    .fb-input {
-      flex: 1;
-      background: none;
-      border: none;
-      color: #fff;
-      font-size: 14px;
-      font-family: inherit;
-      resize: none;
-      max-height: 100px;
-      line-height: 1.5;
+    #filmbuddy-overlay .fb-input::placeholder {
+      color: rgba(255, 255, 255, 0.3) !important;
     }
 
-    .fb-input::placeholder {
-      color: rgba(255, 255, 255, 0.4);
+    #filmbuddy-overlay .fb-send-btn {
+      width: 36px !important;
+      height: 36px !important;
+      min-width: 36px !important;
+      min-height: 36px !important;
+      background: #22d3ee !important;
+      border: none !important;
+      border-radius: 10px !important;
+      color: #0f1318 !important;
+      cursor: pointer !important;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: center !important;
+      flex-shrink: 0 !important;
+      transition: all 0.15s ease !important;
     }
 
-    .fb-input:focus {
-      outline: none;
+    #filmbuddy-overlay .fb-send-btn:hover {
+      background: #67e8f9 !important;
+      transform: scale(1.04) !important;
     }
 
-    .fb-send-btn {
-      width: 40px;
-      height: 40px;
-      background: rgba(255, 255, 255, 0.15);
-      border: 1px solid rgba(255, 255, 255, 0.2);
-      border-radius: 10px;
-      color: #fff;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-      transition: all 0.2s;
+    #filmbuddy-overlay .fb-send-btn:active {
+      transform: scale(0.98) !important;
     }
 
-    .fb-send-btn:hover {
-      background: rgba(255, 255, 255, 0.25);
+    #filmbuddy-overlay .fb-send-btn:disabled {
+      background: rgba(255, 255, 255, 0.08) !important;
+      color: rgba(255, 255, 255, 0.25) !important;
+      cursor: not-allowed !important;
+      transform: none !important;
     }
 
-    .fb-send-btn:disabled {
-      background: rgba(255, 255, 255, 0.05);
-      border-color: rgba(255, 255, 255, 0.1);
-      color: rgba(255, 255, 255, 0.3);
-      cursor: not-allowed;
+    #filmbuddy-overlay .fb-send-btn svg {
+      width: 18px !important;
+      height: 18px !important;
     }
 
-    /* Hover trigger zone */
+    /* ===== TRIGGER ZONE ===== */
     #filmbuddy-trigger {
-      position: fixed;
-      top: 0;
-      right: 0;
-      width: ${SHOW_THRESHOLD}px;
-      height: 100vh;
-      z-index: 2147483646;
+      position: fixed !important;
+      top: 0 !important;
+      right: 0 !important;
+      width: ${SHOW_THRESHOLD}px !important;
+      height: 100vh !important;
+      z-index: 2147483646 !important;
+      background: transparent !important;
     }
   `;
 
@@ -422,43 +459,42 @@ if (window.__filmbuddyInjected) {
     overlay.id = 'filmbuddy-overlay';
     overlay.innerHTML = `
       <div class="fb-container">
-        <div class="fb-inner">
-          <div class="fb-header">
-            <div class="fb-header-top">
-              <span class="fb-title">FilmBuddy</span>
-              <button class="fb-pin-btn" id="fb-pin" title="Pin panel">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
-                  <circle cx="12" cy="12" r="3"/>
-                  <path d="M12 2v4m0 12v4m-10-10h4m12 0h4"/>
-                </svg>
-              </button>
-            </div>
-            <div class="fb-controls">
-              <select class="fb-select" id="fb-film-select">
-                <option value="">Loading...</option>
-              </select>
-              <span class="fb-timestamp" id="fb-timestamp">0:00</span>
-              <label class="fb-spoiler">
-                <input type="checkbox" id="fb-spoiler-toggle">
-                <span>Spoilers</span>
-              </label>
-            </div>
+        <div class="fb-header">
+          <div class="fb-header-top">
+            <span class="fb-title">FilmBuddy</span>
+            <button class="fb-pin-btn" id="fb-pin" title="Pin panel">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 2v4m0 12v4m-10-10h4m12 0h4"/>
+                <circle cx="12" cy="12" r="3"/>
+              </svg>
+            </button>
           </div>
-          <div class="fb-chat" id="fb-chat">
-            <div class="fb-welcome">
-              Ask me anything about what you're watching!
-              <div class="fb-welcome-sub">I won't spoil what's ahead.</div>
-            </div>
+          <select class="fb-select" id="fb-film-select">
+            <option value="">Loading...</option>
+          </select>
+          <div class="fb-meta-row">
+            <span class="fb-timestamp" id="fb-timestamp">0:00</span>
+            <label class="fb-spoiler">
+              <input type="checkbox" id="fb-spoiler-toggle">
+              <span>Spoilers</span>
+            </label>
           </div>
-          <div class="fb-input-area">
-            <div class="fb-input-wrapper">
-              <textarea class="fb-input" id="fb-input" placeholder="Ask about the movie..." rows="1"></textarea>
-              <button class="fb-send-btn" id="fb-send">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
-                </svg>
-              </button>
-            </div>
+        </div>
+        <div class="fb-divider"></div>
+        <div class="fb-chat" id="fb-chat">
+          <div class="fb-welcome">
+            Ask me anything about what you're watching.
+            <div class="fb-welcome-sub">I'll keep answers spoiler-free based on your current timestamp.</div>
+          </div>
+        </div>
+        <div class="fb-input-area">
+          <div class="fb-input-wrapper">
+            <textarea class="fb-input" id="fb-input" placeholder="Ask about the movie..." rows="1"></textarea>
+            <button class="fb-send-btn" id="fb-send">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+              </svg>
+            </button>
           </div>
         </div>
       </div>
@@ -508,10 +544,10 @@ if (window.__filmbuddyInjected) {
       }
     });
 
-    // Start hide timer when mouse leaves overlay (unless pinned)
+    // Hide immediately when mouse leaves overlay (unless pinned)
     overlay.addEventListener('mouseleave', (e) => {
       if (!state.isPinned && e.clientX < window.innerWidth - PANEL_WIDTH) {
-        scheduleHide();
+        hidePanel();
       }
     });
 
@@ -851,6 +887,20 @@ if (window.__filmbuddyInjected) {
     }
   }
 
+  function formatMessageContent(content) {
+    // Convert markdown-style **bold** to HTML <strong> tags
+    // Escape HTML first to prevent XSS
+    const escaped = content
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+    
+    // Now convert **text** to <strong>text</strong>
+    return escaped.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+  }
+
   function addMessage(type, content) {
     const chat = document.getElementById('fb-chat');
     if (!chat) return;
@@ -863,7 +913,14 @@ if (window.__filmbuddyInjected) {
 
     const msg = document.createElement('div');
     msg.className = `fb-message ${type}`;
-    msg.textContent = content;
+    
+    // For assistant messages, format bold text
+    if (type === 'assistant') {
+      msg.innerHTML = formatMessageContent(content);
+    } else {
+      msg.textContent = content;
+    }
+    
     chat.appendChild(msg);
     chat.scrollTop = chat.scrollHeight;
   }

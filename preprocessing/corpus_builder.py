@@ -26,17 +26,37 @@ from preprocessing.tmdb_client import TMDBClient
 from preprocessing.script_parser import ScriptParser
 from preprocessing.character_extractor import CharacterExtractor
 from preprocessing.timestamp_aligner import TimestampAligner
+from preprocessing.improved_aligner import ImprovedTimestampAligner
 
 
 class MovieCorpusBuilder:
     """Orchestrates the full corpus building pipeline."""
     
-    def __init__(self):
-        """Initialize all preprocessing components."""
+    def __init__(self, use_improved_aligner: bool = True):
+        """
+        Initialize all preprocessing components.
+        
+        Args:
+            use_improved_aligner: If True, use ImprovedTimestampAligner (recommended).
+                                 If False, use legacy TimestampAligner.
+        """
         self.tmdb = TMDBClient()
         self.parser = ScriptParser()
         self.extractor = CharacterExtractor()
-        self.aligner = TimestampAligner()
+        
+        # Choose aligner
+        if use_improved_aligner:
+            self.aligner = ImprovedTimestampAligner(
+                anchor_threshold=0.85,
+                fuzzy_threshold=0.75,
+                min_phrase_words=4
+            )
+            self.aligner_name = "ImprovedTimestampAligner"
+        else:
+            self.aligner = TimestampAligner()
+            self.aligner_name = "TimestampAligner (legacy)"
+        
+        print(f"[CorpusBuilder] Using {self.aligner_name}")
     
     async def build_corpus(
         self,

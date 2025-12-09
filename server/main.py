@@ -379,7 +379,7 @@ def get_temporal_context(film_id: str, t_now: float, window_seconds: float = 60)
     }
 
 
-def generate_response(query: str, hits: List[Hit], t_now: float, spoiler_mode: str, film_id: str = None, enriched_scene: dict = None) -> str:
+def generate_response(query: str, hits: List[Hit], t_now: float, spoiler_mode: str, film_id: str = None, enriched_scene: dict = None, is_scene_query: bool = False) -> str:
     """Generate a conversational response using LLM based on retrieved chunks and temporal context.
     
     Args:
@@ -460,9 +460,11 @@ def generate_response(query: str, hits: List[Hit], t_now: float, spoiler_mode: s
         
         subtitle_context = "\n".join(current_scene_parts) if current_scene_parts else "No recent dialogue available."
     
-    # Add enriched character data if available and relevant
+    # Build context based on query type and available data
     if enriched_scene:
         location = enriched_scene.get('location', 'Unknown')
+        scene_summary = enriched_scene.get('summary', '')
+        action_text = enriched_scene.get('action_text', '')
         characters_present = enriched_scene.get('characters_present', [])
         character_details = enriched_scene.get('character_details', {})
         
@@ -481,15 +483,41 @@ def generate_response(query: str, hits: List[Hit], t_now: float, spoiler_mode: s
         
         character_info = "\n".join(character_info_parts) if character_info_parts else ""
         
-        # Combine: Subtitle context (primary) + Enriched data (supplementary)
-        current_scene_context = f"""RECENT DIALOGUE (what's actually happening now):
+        # HIERARCHY DEPENDS ON QUERY TYPE
+        if is_scene_query:
+            # For "what's happening" / scene summary questions:
+            # Prioritize: Location → Scene Summary → Action → Dialogue → Characters
+            print(f"[LLM] Scene-summary query detected - using enriched scene context")
+            
+            current_scene_context = f"""📍 SCENE LOCATION & SETTING:
+Location: {location}
+
+🎬 WHAT'S HAPPENING (Scene Summary):
+{scene_summary}
+
+🎭 SCENE ACTIONS & STAGING:
+{action_text if action_text else "(Stage directions not available)"}
+
+💬 RECENT DIALOGUE (what's being said right now):
 {subtitle_context}
 
-ADDITIONAL CHARACTER INFO (from script analysis):
-Location in script: {location}
-{character_info if character_info else "(No character details available for this moment)"}"""
-        
-        print(f"[LLM] Using hybrid context: Subtitles + enriched data ({location})")
+👥 CHARACTERS IN THIS SCENE:
+{character_info if character_info else "(No character details available)"}"""
+            
+            print(f"[LLM] Using scene-first context for: {location}")
+        else:
+            # For character/specific questions:
+            # Prioritize: Dialogue → Characters → Location (supplementary)
+            current_scene_context = f"""💬 RECENT DIALOGUE (what's actually happening now):
+{subtitle_context}
+
+📍 SCENE LOCATION (from script):
+{location}
+
+👥 CHARACTERS IN THIS SCENE:
+{character_info if character_info else "(No character details available)"}"""
+            
+            print(f"[LLM] Using dialogue-first context for specific query at: {location}")
         
     else:
         # Fall back to subtitle context only (no enriched data)
@@ -516,16 +544,38 @@ Location in script: {location}
     seconds = int(t_now % 60)
     time_str = f"{minutes}:{seconds:02d}"
 
-    # Enhanced system prompt with character awareness
-    if enriched_scene:
-        character_context_note = """
+    # Enhanced system prompt based on query type and available data
+    if is_scene_query and enriched_scene:
+        # Scene-summary query with enriched data: emphasize scene description
+        query_type_note = """
+QUERY TYPE: Scene/Context Question
+The user is asking about what's happening in the scene or where they are.
+
+RESPONSE STRATEGY:
+1. Start with the LOCATION and SETTING from the "Scene Location & Setting" section
+2. Use the "What's Happening (Scene Summary)" to describe the scene broadly
+3. Reference "Scene Actions & Staging" for visual/spatial details
+4. Use "Recent Dialogue" to support your description with what's being said
+5. Mention characters present if relevant to understanding the scene
+
+TONE FOR SCENE QUESTIONS:
+- Be conversational and natural, like explaining what's on screen to a friend
+- Paraphrase dialogue, DON'T quote it directly
+- Convert technical cues into plain language (e.g., "(DOOR SLAMS)" → "a door slams")
+- Focus on what the viewer can SEE and HEAR, not script formatting
+- Keep it brief - 2-3 sentences that paint the picture quickly"""
+        
+    elif enriched_scene:
+        # Non-scene query with enriched data: emphasize dialogue and characters
+        query_type_note = """
 CHARACTERS IN CURRENT SCENE - Use this to identify "that guy", "her", "the woman", etc.:
 The "Characters in this scene" section shows EXACTLY who is on screen right now with their full details.
-When someone asks "who's that guy?" or similar vague questions, check the character list for the current scene."""
+When someone asks "who's that guy?" or similar vague questions, check the character list for the current scene.
+The "Scene Location" provides context but the recent dialogue is your primary source."""
     else:
-        character_context_note = """
+        query_type_note = """
 Note: This film uses basic subtitle context (no character metadata available).
-Do your best to identify characters from dialogue patterns."""
+Do your best to identify characters from dialogue patterns and recent conversation."""
 
     # Check if multi-scene context is present
     has_multiple_scenes = len(scenes) > 1
@@ -535,40 +585,49 @@ Do your best to identify characters from dialogue patterns."""
 MULTI-SCENE CONTEXT:
 The dialogue below shows {len(scenes)} different scenes from the last 45 seconds.
 The viewer is currently watching the scene marked "🎬 CURRENT SCENE" at {time_str}.
-Previous scenes are shown with lower relevance weights - use them for context but NOT for "who is this?" questions."""
+Previous scenes are shown with lower relevance weights - use them for context but NOT for "who is this?" or "where are we?" questions."""
     
     system_prompt = f"""You are FilmBuddy, a friendly and knowledgeable movie companion chatbot. You help viewers understand and engage with the movie they're watching.
 
 Current playback time: {time_str} ({t_now:.0f} seconds into the film)
 Spoiler mode: {spoiler_mode}
 
-{character_context_note}
+{query_type_note}
 {scene_context_note}
 
 CRITICAL: SCENE AWARENESS AND RECENCY
 ⚠️ For character identification questions ("who is this?", "who are they?", "who are these two?"):
-- ONLY use dialogue marked "🎬 CURRENT SCENE" - this is what the viewer sees RIGHT NOW
+- ONLY use dialogue/content marked "🎬 CURRENT SCENE" - this is what the viewer sees RIGHT NOW
 - If you see multiple scenes, IGNORE previous scenes (📽️) for character identification
-- Look at the LAST 2-3 dialogue entries in the CURRENT SCENE only
-- The current scene may only have 5-10 seconds of dialogue - that's okay, focus on it
+- Look at the MOST RECENT dialogue entries in the CURRENT SCENE only
 - If the current scene dialogue lacks clear character indicators, check "Characters in this scene" metadata
 - If BOTH current dialogue AND metadata are unclear, say you're uncertain rather than guessing
 
 IMPORTANT RULES:
-1. **Prioritize Current Scene**: When you see "🎬 CURRENT SCENE", that's the ONLY dialogue happening right now
-2. For vague references like "that guy", "her", "the woman", "these two":
-   - Find the "🎬 CURRENT SCENE" section
-   - Read ONLY the dialogue in that current scene
-   - Check if character names are mentioned there
-   - Use "Characters in this scene" metadata if available AND it matches the timing
-   - Be specific: "That's [Character Name], played by [Actor], who is [role]"
-3. Previous scenes (📽️) provide context for plot/backstory questions but NOT for "who is this?" questions
-4. The "Relevant Moments" provide additional context but may be from different scenes - use them for plot/theme questions, not "who is this" questions
-5. {"Since spoiler mode is OFF, do NOT reveal any plot points, character fates, or events that happen after the current timestamp" if spoiler_mode.lower() == "off" else "Spoiler mode is ON, so you may discuss the full film"}
-6. Be conversational and engaging, like a friend watching the movie with the viewer
-7. **If you can't confidently identify characters from CURRENT SCENE dialogue, say so honestly** - don't use previous scenes to guess
-8. Keep responses concise but informative (2-4 sentences typically)
-9. When identifying characters, mention both their character name AND the actor's name"""
+1. **Prioritize Current Scene**: When you see "🎬 CURRENT SCENE", that's what's happening RIGHT NOW
+2. For "where are we?" or "what's happening?" questions:
+   - Use the "Scene Location & Setting" and "Scene Summary" sections if available
+   - These provide the broader context of what's happening beyond just dialogue
+3. For "who is this?" questions:
+   - Use ONLY current scene dialogue and the "Characters in this scene" list
+   - Be specific: "That's [Character Name], played by [Actor]"
+4. Previous scenes (📽️) provide context for plot/backstory questions but NOT for "who/where/what is this?" questions
+5. The "Relevant Moments" provide additional context but may be from different scenes - use them for plot/theme questions
+6. {"Since spoiler mode is OFF, do NOT reveal any plot points, character fates, or events that happen after the current timestamp" if spoiler_mode.lower() == "off" else "Spoiler mode is ON, so you may discuss the full film"}
+7. **TONE & STYLE - CRITICAL**:
+   - Write like you're watching WITH a friend, not narrating a story
+   - Use casual, conversational language
+   - DON'T quote dialogue verbatim or use quotation marks
+   - DON'T mention sound effects in parentheses like "(BODY THUDS)" - instead say "someone fell" or "there's a crash"
+   - DON'T cite the script - paraphrase what's happening naturally
+   - Be brief and direct (2-3 sentences max for "what's happening" questions)
+8. **FORMATTING REQUIREMENTS**:
+   - **BOLD the key answer** using **asterisks** - the most important information should stand out
+   - For "who is that?" → bold the character name: "That's **Kat Stratford**"
+   - For "where are we?" → bold the location: "They're at **Padua High School**"
+   - For "what's happening?" → bold the key action: "They're **planning a party**"
+   - **Keep responses under 70 words MAXIMUM** - be concise and direct
+9. **If you can't confidently answer from CURRENT SCENE context, say so honestly**"""
 
     user_prompt = f"""CURRENT SCENE (what's happening right now):
 {current_scene_context}
@@ -857,6 +916,33 @@ def is_deictic_query(query: str) -> bool:
     query_lower = query.lower()
     return any(re.search(pattern, query_lower) for pattern in deictic_patterns)
 
+def is_scene_summary_query(query: str) -> bool:
+    """
+    Detect scene-summary questions - queries asking about broader scene context or setting.
+    These need scene summaries, action lines, and location info (not just dialogue).
+    
+    Examples:
+        - "what's happening in this scene"
+        - "where are we"
+        - "what's going on right now"
+        - "what just happened"
+        - "describe this scene"
+        - "what's happening" (standalone)
+    """
+    import re
+    scene_summary_patterns = [
+        r'\bwhat\'?s (happening|going on)( in| right| at)?( this scene| now| here)?\b',
+        r'\bwhere (are we|is this|am i)\b',
+        r'\bwhat (just )?happened\b',
+        r'\bdescribe (this|the) scene\b',
+        r'\bwhat\'?s (this|the) scene( about)?\b',
+        r'\bwhat (scene|place) is this\b',
+        r'\btell me about this scene\b',
+        r'\bwhat are (they|we) doing\b',
+    ]
+    query_lower = query.lower()
+    return any(re.search(pattern, query_lower) for pattern in scene_summary_patterns)
+
 def search(query: str, film_id: str, t_now: float, spoiler_mode: str, top_k: int) -> AskResponse:
     # Check if film exists
     if film_id not in film_data:
@@ -948,7 +1034,7 @@ def search(query: str, film_id: str, t_now: float, spoiler_mode: str, top_k: int
     }
     note = "spoiler_mode=off; kept only chunks with t_start ≤ t_now" if spoiler_mode.lower() == "off" else "spoiler_mode=on; future chunks allowed"
 
-    # 6) Get enriched scene data if available
+    # 6) Get enriched scene data if available (with strict validation)
     enriched_scene = None
     if vector_store:
         # Map film_id to enriched movie_id
@@ -957,19 +1043,42 @@ def search(query: str, film_id: str, t_now: float, spoiler_mode: str, top_k: int
             try:
                 enriched_scene = vector_store.query_scene_at_timestamp(enriched_id, t_now)
                 if enriched_scene:
-                    # Validate enriched scene against subtitle hits
-                    # If alignment confidence is low, don't use it
+                    # CRITICAL: Strict temporal validation
+                    # Only use enriched scene if timestamp is ACTUALLY within scene bounds
+                    scene_t_start = enriched_scene.get('t_start', 0)
+                    scene_t_end = enriched_scene.get('t_end', 0)
                     confidence = enriched_scene.get('alignment_confidence', 0)
-                    if confidence < 0.5:
-                        print(f"[search] ⚠ Enriched scene has low confidence ({confidence:.2f}), skipping")
+                    
+                    # Check temporal bounds (allow 5s buffer at end for scene transitions)
+                    if not (scene_t_start <= t_now <= scene_t_end + 5):
+                        time_diff = min(abs(t_now - scene_t_start), abs(t_now - scene_t_end))
+                        print(f"[search] ⚠ Enriched scene temporally misaligned:")
+                        print(f"           Scene: {scene_t_start:.1f}s - {scene_t_end:.1f}s")
+                        print(f"           Current: {t_now:.1f}s (diff: {time_diff:.1f}s)")
                         enriched_scene = None
+                    # Check alignment confidence (adaptive threshold)
+                    # Synthetic scenes have confidence 0.5, original scenes typically 0.7-1.0
                     else:
-                        print(f"[search] ✓ Retrieved enriched scene: {enriched_scene.get('location', 'unknown')} (confidence: {confidence:.2f})")
+                        is_synthetic = enriched_scene.get('synthetic', False)
+                        min_confidence = 0.5 if is_synthetic else 0.7
+                        
+                        if confidence < min_confidence:
+                            scene_type = "synthetic" if is_synthetic else "script"
+                            print(f"[search] ⚠ Enriched scene ({scene_type}) has low confidence ({confidence:.2f}), skipping")
+                            enriched_scene = None
+                        else:
+                            location = enriched_scene.get('location', 'unknown')
+                            scene_type = "SYNTHETIC" if is_synthetic else "SCRIPT"
+                            print(f"[search] ✓ Retrieved enriched scene [{scene_type}]: {location}")
+                            print(f"           Time: {scene_t_start:.1f}s - {scene_t_end:.1f}s (confidence: {confidence:.2f})")
             except Exception as e:
                 print(f"[search] Warning: Could not retrieve enriched scene: {e}")
     
-    # 7) Generate LLM response (pass enriched scene so LLM can answer even without subtitle hits)
-    answer = generate_response(query, hits, t_now, spoiler_mode, film_id, enriched_scene)
+    # 7) Detect query type for context-aware response generation
+    is_scene_query = is_scene_summary_query(query)
+    
+    # 8) Generate LLM response (pass enriched scene and query type)
+    answer = generate_response(query, hits, t_now, spoiler_mode, film_id, enriched_scene, is_scene_query)
 
     return AskResponse(
         answer=answer,

@@ -546,3 +546,4 @@ The server now has **full character awareness** and can answer vague deictic que
 **FilmBuddy is now fully operational with character-aware features!** 🎬🎉
 
 
+

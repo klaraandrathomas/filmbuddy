@@ -104,6 +104,7 @@ class MovieVectorStore:
                 'int_ext': str(scene.get('int_ext', '')),
                 'alignment_confidence': float(scene.get('alignment_confidence', 0)),
                 'alignment_method': str(scene.get('alignment_method', '')),
+                'synthetic': bool(scene.get('synthetic', False)),  # Mark synthetic scenes
                 # Store characters as JSON string (ChromaDB doesn't support lists directly)
                 'characters_present': json.dumps(scene.get('characters_present', [])),
                 'character_details': json.dumps(scene.get('character_details', {})),

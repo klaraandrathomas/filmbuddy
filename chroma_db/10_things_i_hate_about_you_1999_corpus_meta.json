@@ -723,16 +723,5 @@
       "billing_order": 18
     }
   },
-  "stats": {
-    "total_time": 61.55195713043213,
-    "tmdb_time": 0.3580348491668701,
-    "parse_time": 0.01375579833984375,
-    "character_extraction_time": 17.185178756713867,
-    "alignment_time": 1.568897008895874,
-    "summary_time": 42.414231061935425,
-    "total_scenes": 79,
-    "aligned_scenes": 73,
-    "interpolated_scenes": 6,
-    "total_characters": 50
-  }
+  "stats": {}
 }

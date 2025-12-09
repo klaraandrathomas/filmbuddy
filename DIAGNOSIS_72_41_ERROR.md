@@ -285,11 +285,46 @@ User Query: "who are these two?" at 72:41 (Cameron & Bianca in French class)
 
 ## Immediate Action Items
 
-1. **Fix enriched corpus timestamp alignment** (run corpus builder with improved aligner)
-2. **Reduce temporal context window** from 90s → 45s (quick config change)
-3. **Add scene boundary detection** (moderate coding effort)
-4. **Add verification prompt** to LLM system instructions (quick prompt change)
-5. **Test with known failure cases** (this 72:41 query, others user mentioned)
+1. **Fix enriched corpus timestamp alignment** (run corpus builder with improved aligner) ⏳ PENDING
+2. **Reduce temporal context window** from 90s → 45s (quick config change) ✅ DONE
+3. **Add scene boundary detection** (moderate coding effort) ✅ DONE (with soft weighting)
+4. **Add verification prompt** to LLM system instructions (quick prompt change) ✅ DONE
+5. **Test with known failure cases** (this 72:41 query, others user mentioned) ⏳ IN PROGRESS
+
+## UPDATES IMPLEMENTED (2024-12-03)
+
+### ✅ Implemented: Multi-Scene Detection with Soft Weighting
+
+**What changed:**
+- Implemented smart scene detection that identifies multiple scenes in the 45s window
+- Uses "soft boundaries" - previous scenes are de-weighted (0.09, 0.3) but not removed
+- Current scene clearly marked with 🎬 emoji in LLM prompt
+- Previous scenes marked with 📽️ and relevance score
+
+**How it works for 72:41:**
+```
+📽️ Previous Scene (0.1 relevance):     ← Patrick/Kat prom scene (71:16-72:13)
+[71:16] "Tell me something true..."
+[71:14] (KISSES NECK)
+[72:13] (SCOFFS)
+
+📽️ Previous Scene (0.3 relevance):     ← Transition shot
+[72:24] (SPEAKING FRENCH)
+
+🎬 CURRENT SCENE:                       ← Cameron/Bianca (72:37-72:40)
+[72:37] Wait. Wait a minute.
+        That... That's not on this page.
+```
+
+**LLM instructions updated:**
+- "ONLY use dialogue marked '🎬 CURRENT SCENE' for character identification"
+- "If you see multiple scenes, IGNORE previous scenes (📽️) for character ID"
+- "If current scene dialogue lacks clear indicators, check metadata OR say you're uncertain"
+
+**Expected improvement:**
+- LLM should NOT identify Patrick/Kat anymore (they're in previous scene)
+- Should either correctly identify Cameron/Bianca (if enriched data available) OR admit uncertainty
+- Provides better context flow while maintaining focus on current moment
 
 ## Expected Impact
 
