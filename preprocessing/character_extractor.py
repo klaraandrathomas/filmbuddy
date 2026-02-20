@@ -60,6 +60,7 @@ class CharacterExtractor:
             self.deployment_name = deployment_name or os.environ.get(
                 "AZURE_OPENAI_DEPLOYMENT_NAME", "gpt-4.1"
             )
+            self.endpoint = azure_endpoint
             self.client = AzureOpenAI(
                 api_key=azure_key,
                 api_version=self.api_version,
@@ -71,6 +72,7 @@ class CharacterExtractor:
             self.deployment_name = deployment_name or os.environ.get(
                 "FILMBUDDY_LLM_MODEL", "gpt-4o"
             )
+            self.endpoint = None
             self.client = OpenAI(api_key=api_key or openai_key)
             print(f"[CharacterExtractor] Using OpenAI model: {self.deployment_name}")
         else:
