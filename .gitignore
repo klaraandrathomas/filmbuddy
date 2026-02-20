@@ -32,3 +32,7 @@ Thumbs.db
 
 # Logs
 *.log
+
+# Test artifacts
+test_chroma_db/
+.pytest_cache/
