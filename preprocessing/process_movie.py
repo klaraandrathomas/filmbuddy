@@ -213,7 +213,7 @@ async def process_movie(
     output_dir: str = "corpus",
     max_gap_sec: float = 6.0,
     max_chars: int = 1200,
-) -> Optional[dict]:
+) -> Optional[dict | str]:
     """Process a single movie through both pipelines.
 
     Pipeline 1 (Subtitle Chunks):
@@ -232,6 +232,11 @@ async def process_movie(
         output_dir: Directory for output files
         max_gap_sec: Max gap (seconds) to merge consecutive subtitle cues
         max_chars: Max characters per merged subtitle chunk
+
+    Returns:
+        dict: The corpus on success.
+        "skipped": If the corpus was up-to-date (cache hit).
+        None: On failure.
     """
     print("=" * 70)
     print(f"PROCESSING: {title}")
@@ -265,7 +270,7 @@ async def process_movie(
     ):
         print("Corpus is up-to-date, skipping rebuild.")
         print("Use --force to rebuild anyway.")
-        return None
+        return "skipped"
 
     pipeline_start = time.time()
 
@@ -404,14 +409,22 @@ async def batch_process(
             max_gap_sec=max_gap_sec,
             max_chars=max_chars,
         )
-        results.append({"title": movie["title"], "success": result is not None})
+        if result == "skipped":
+            status = "skipped"
+        elif result is not None:
+            status = "ok"
+        else:
+            status = "failed"
+        results.append({"title": movie["title"], "status": status})
         print()
 
-    successful = sum(1 for r in results if r["success"])
-    print(f"Batch complete: {successful}/{len(movies)} successful")
+    successful = sum(1 for r in results if r["status"] == "ok")
+    skipped = sum(1 for r in results if r["status"] == "skipped")
+    failed = sum(1 for r in results if r["status"] == "failed")
+    print(f"Batch complete: {successful} succeeded, {skipped} skipped (cached), {failed} failed")
     for r in results:
-        status = "OK" if r["success"] else "FAILED"
-        print(f"  [{status}] {r['title']}")
+        label = {"ok": "OK", "skipped": "SKIPPED", "failed": "FAILED"}[r["status"]]
+        print(f"  [{label}] {r['title']}")
 
 
 def main() -> None:
