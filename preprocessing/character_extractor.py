@@ -34,6 +34,21 @@ class CharacterExtractor:
         api_version: str = None,
         deployment_name: str = None,
     ):
+        """Initialise with Azure OpenAI or standard OpenAI credentials.
+
+        Args:
+            api_key: Azure OpenAI API key (defaults to AZURE_OPENAI_API_KEY env
+                var).  For standard OpenAI, set the OPENAI_API_KEY env var
+                instead.
+            endpoint: Azure OpenAI endpoint (defaults to AZURE_OPENAI_ENDPOINT
+                env var).  Must be provided together with *api_key* to select
+                the Azure path.
+            api_version: Azure API version (defaults to AZURE_OPENAI_API_VERSION
+                env var or "2024-10-21").
+            deployment_name: Model / deployment name.  Defaults to
+                AZURE_OPENAI_DEPLOYMENT_NAME (Azure) or FILMBUDDY_LLM_MODEL /
+                "gpt-4o" (OpenAI).
+        """
         azure_key = api_key or os.environ.get("AZURE_OPENAI_API_KEY")
         azure_endpoint = endpoint or os.environ.get("AZURE_OPENAI_ENDPOINT")
         openai_key = os.environ.get("OPENAI_API_KEY")
