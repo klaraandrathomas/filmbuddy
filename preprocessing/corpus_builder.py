@@ -16,6 +16,7 @@ Produces scene-aware corpus with character details for each timestamp.
 
 import os
 import json
+import re
 import asyncio
 import time
 from pathlib import Path
@@ -135,7 +136,7 @@ class MovieCorpusBuilder:
             stats['tmdb_time'] = time.time() - step_start
         
         # Generate movie_id
-        title_slug = movie_title.lower().replace(' ', '_').replace("'", '')
+        title_slug = re.sub(r"[^a-z0-9]+", "_", movie_title.lower()).strip("_")
         year_str = str(tmdb_metadata.get('release_year') or release_year or 'unknown')
         movie_id = f"{title_slug}_{year_str}"
         

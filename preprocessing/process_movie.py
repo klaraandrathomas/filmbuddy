@@ -36,6 +36,7 @@ import sys
 import os
 import hashlib
 import json
+import re
 import time
 from pathlib import Path
 from typing import Optional
@@ -260,7 +261,7 @@ async def process_movie(
     script_hash = compute_file_hash(script_path)
     subtitle_hash = compute_file_hash(subtitle_path)
 
-    title_slug = title.lower().replace(" ", "_").replace("'", "")
+    title_slug = re.sub(r"[^a-z0-9]+", "_", title.lower()).strip("_")
     year_str = str(year) if year else "unknown"
     movie_id = f"{title_slug}_{year_str}"
     film_id = title_slug
