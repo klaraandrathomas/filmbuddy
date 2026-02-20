@@ -77,8 +77,11 @@ def check_incremental_update(
     Returns True if rebuild needed, False if cached version is valid.
     """
     exact = os.path.join(cache_dir, f".{movie_id}_cache.json")
+    # Match only {title_slug}_{4-digit-year} and {title_slug}_unknown to
+    # avoid prefix collisions (e.g. the_matrix matching the_matrix_reloaded).
     glob_matches = sorted(
-        globmod.glob(os.path.join(cache_dir, f".{title_slug}_*_cache.json"))
+        globmod.glob(os.path.join(cache_dir, f".{title_slug}_[0-9][0-9][0-9][0-9]_cache.json"))
+        + globmod.glob(os.path.join(cache_dir, f".{title_slug}_unknown_cache.json"))
     )
     candidates = list(dict.fromkeys([exact] + glob_matches))
 
