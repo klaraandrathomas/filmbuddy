@@ -15,56 +15,54 @@ import os
 import json
 import asyncio
 from typing import Optional
-from openai import AzureOpenAI
+from openai import AzureOpenAI, OpenAI
 
 
 class CharacterExtractor:
-    """LLM-powered character metadata extraction using Azure OpenAI."""
-    
+    """LLM-powered character metadata extraction.
+
+    Supports both Azure OpenAI and regular OpenAI.  When Azure credentials
+    (AZURE_OPENAI_API_KEY + AZURE_OPENAI_ENDPOINT) are present the Azure
+    client is used; otherwise it falls back to the standard OpenAI client
+    with OPENAI_API_KEY.
+    """
+
     def __init__(
-        self, 
-        api_key: str = None, 
-        endpoint: str = None, 
+        self,
+        api_key: str = None,
+        endpoint: str = None,
         api_version: str = None,
-        deployment_name: str = None
+        deployment_name: str = None,
     ):
-        """
-        Initialize with Azure OpenAI configuration.
-        
-        Args:
-            api_key: Azure OpenAI API key (defaults to AZURE_OPENAI_API_KEY env var)
-            endpoint: Azure OpenAI endpoint (defaults to AZURE_OPENAI_ENDPOINT env var)
-            api_version: API version (defaults to AZURE_OPENAI_API_VERSION env var or "2024-10-21")
-            deployment_name: Deployment name (defaults to AZURE_OPENAI_DEPLOYMENT_NAME env var or "gpt-4o")
-        
-        Note: Uses the same configuration as your server/main.py
-        """
-        self.api_key = api_key or os.environ.get("AZURE_OPENAI_API_KEY")
-        self.endpoint = endpoint or os.environ.get("AZURE_OPENAI_ENDPOINT")
-        self.api_version = api_version or os.environ.get("AZURE_OPENAI_API_VERSION", "2024-10-21")
-        self.deployment_name = deployment_name or os.environ.get("AZURE_OPENAI_DEPLOYMENT_NAME", "gpt-4.1")
-        
-        if not self.api_key:
-            raise ValueError(
-                "Azure OpenAI API key not found. Set AZURE_OPENAI_API_KEY environment variable "
-                "or pass api_key parameter."
+        azure_key = api_key or os.environ.get("AZURE_OPENAI_API_KEY")
+        azure_endpoint = endpoint or os.environ.get("AZURE_OPENAI_ENDPOINT")
+        openai_key = os.environ.get("OPENAI_API_KEY")
+
+        if azure_key and azure_endpoint:
+            self.api_version = api_version or os.environ.get(
+                "AZURE_OPENAI_API_VERSION", "2024-10-21"
             )
-        
-        if not self.endpoint:
-            raise ValueError(
-                "Azure OpenAI endpoint not found. Set AZURE_OPENAI_ENDPOINT environment variable "
-                "or pass endpoint parameter."
+            self.deployment_name = deployment_name or os.environ.get(
+                "AZURE_OPENAI_DEPLOYMENT_NAME", "gpt-4.1"
             )
-        
-        # Initialize Azure OpenAI client
-        self.client = AzureOpenAI(
-            api_key=self.api_key,
-            api_version=self.api_version,
-            azure_endpoint=self.endpoint
-        )
-        
-        print(f"[CharacterExtractor] Using Azure OpenAI deployment: {self.deployment_name}")
-        print(f"[CharacterExtractor] Azure endpoint: {self.endpoint}")
+            self.client = AzureOpenAI(
+                api_key=azure_key,
+                api_version=self.api_version,
+                azure_endpoint=azure_endpoint,
+            )
+            print(f"[CharacterExtractor] Using Azure OpenAI deployment: {self.deployment_name}")
+            print(f"[CharacterExtractor] Azure endpoint: {azure_endpoint}")
+        elif openai_key or api_key:
+            self.deployment_name = deployment_name or os.environ.get(
+                "FILMBUDDY_LLM_MODEL", "gpt-4o"
+            )
+            self.client = OpenAI(api_key=api_key or openai_key)
+            print(f"[CharacterExtractor] Using OpenAI model: {self.deployment_name}")
+        else:
+            raise ValueError(
+                "No LLM API key found. Set OPENAI_API_KEY or both "
+                "AZURE_OPENAI_API_KEY and AZURE_OPENAI_ENDPOINT."
+            )
     
     async def extract_character_metadata(
         self, 
