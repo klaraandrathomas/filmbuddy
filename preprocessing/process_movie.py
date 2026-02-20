@@ -38,7 +38,13 @@ import hashlib
 import json
 import time
 from pathlib import Path
-from typing import Optional
+from enum import Enum
+from typing import Optional, Union
+
+
+class ProcessResult(Enum):
+    """Sentinel values for non-dict process_movie outcomes."""
+    CACHED = "cached"
 
 from dotenv import load_dotenv
 
@@ -213,7 +219,7 @@ async def process_movie(
     output_dir: str = "corpus",
     max_gap_sec: float = 6.0,
     max_chars: int = 1200,
-) -> Optional[dict]:
+) -> Optional[Union[dict, ProcessResult]]:
     """Process a single movie through both pipelines.
 
     Pipeline 1 (Subtitle Chunks):
@@ -222,6 +228,11 @@ async def process_movie(
     Pipeline 2 (Enriched Corpus):
         Generates {movie_id}_enriched.jsonl, {movie_id}_metadata.json,
         and stores in ChromaDB vector store.
+
+    Returns:
+        dict              – success (newly built corpus)
+        ProcessResult.CACHED – skipped, corpus already up-to-date
+        None              – error
 
     Args:
         title: Movie title for TMDB lookup
@@ -265,7 +276,7 @@ async def process_movie(
     ):
         print("Corpus is up-to-date, skipping rebuild.")
         print("Use --force to rebuild anyway.")
-        return "cached"
+        return ProcessResult.CACHED
 
     pipeline_start = time.time()
 
@@ -396,7 +407,7 @@ async def batch_process(
             max_gap_sec=max_gap_sec,
             max_chars=max_chars,
         )
-        if result == "cached":
+        if result is ProcessResult.CACHED:
             status = "cached"
         elif result is not None:
             status = "ok"
