@@ -109,7 +109,11 @@ def check_incremental_update(
 def save_cache(
     movie_id: str, script_hash: str, subtitle_hash: str, cache_dir: str = "corpus"
 ) -> None:
-    """Save file hashes to cache for incremental update detection."""
+    """Save file hashes to cache for incremental update detection.
+
+    Also removes stale cache files for the same title slug (e.g. an old
+    ``_unknown`` cache after the TMDB-resolved year is known).
+    """
     os.makedirs(cache_dir, exist_ok=True)
     cache_file = os.path.join(cache_dir, f".{movie_id}_cache.json")
     with open(cache_file, "w") as f:
@@ -117,6 +121,17 @@ def save_cache(
             {"script_hash": script_hash, "subtitle_hash": subtitle_hash},
             f,
         )
+
+    # Clean up stale cache files for the same title slug.
+    # movie_id is "{title_slug}_{year_or_unknown}", so strip the last segment.
+    title_slug = movie_id.rsplit("_", 1)[0]
+    stale = (
+        globmod.glob(os.path.join(cache_dir, f".{title_slug}_[0-9][0-9][0-9][0-9]_cache.json"))
+        + globmod.glob(os.path.join(cache_dir, f".{title_slug}_unknown_cache.json"))
+    )
+    for path in stale:
+        if os.path.abspath(path) != os.path.abspath(cache_file):
+            os.remove(path)
 
 
 def validate_corpus_quality(corpus: dict) -> dict:
