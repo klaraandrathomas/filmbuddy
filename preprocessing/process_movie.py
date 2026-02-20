@@ -265,7 +265,7 @@ async def process_movie(
     ):
         print("Corpus is up-to-date, skipping rebuild.")
         print("Use --force to rebuild anyway.")
-        return None
+        return "cached"
 
     pipeline_start = time.time()
 
@@ -396,14 +396,27 @@ async def batch_process(
             max_gap_sec=max_gap_sec,
             max_chars=max_chars,
         )
-        results.append({"title": movie["title"], "success": result is not None})
+        if result == "cached":
+            status = "cached"
+        elif result is not None:
+            status = "ok"
+        else:
+            status = "failed"
+        results.append({"title": movie["title"], "status": status})
         print()
 
-    successful = sum(1 for r in results if r["success"])
-    print(f"Batch complete: {successful}/{len(movies)} successful")
+    ok_count = sum(1 for r in results if r["status"] == "ok")
+    cached_count = sum(1 for r in results if r["status"] == "cached")
+    failed_count = sum(1 for r in results if r["status"] == "failed")
+    print(
+        f"Batch complete: {ok_count} built, "
+        f"{cached_count} cached, "
+        f"{failed_count} failed "
+        f"(out of {len(movies)})"
+    )
     for r in results:
-        status = "OK" if r["success"] else "FAILED"
-        print(f"  [{status}] {r['title']}")
+        label = {"ok": "OK", "cached": "CACHED", "failed": "FAILED"}[r["status"]]
+        print(f"  [{label}] {r['title']}")
 
 
 def main() -> None:
