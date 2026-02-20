@@ -33,6 +33,9 @@ Thumbs.db
 # Logs
 *.log
 
+# Preprocessing cache (incremental rebuild checksums)
+corpus/.*_cache.json
+
 # Test artifacts
 test_chroma_db/
 .pytest_cache/

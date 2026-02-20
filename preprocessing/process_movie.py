@@ -358,7 +358,13 @@ async def process_movie(
         return None
 
 
-async def batch_process(movies_file: str, force_rebuild: bool = False) -> None:
+async def batch_process(
+    movies_file: str,
+    force_rebuild: bool = False,
+    output_dir: str = "corpus",
+    max_gap_sec: float = 6.0,
+    max_chars: int = 1200,
+) -> None:
     """Process multiple movies from a JSON config file.
 
     Config format:
@@ -386,6 +392,9 @@ async def batch_process(movies_file: str, force_rebuild: bool = False) -> None:
             subtitle_path=movie["subtitles"],
             year=movie.get("year"),
             force_rebuild=force_rebuild,
+            output_dir=output_dir,
+            max_gap_sec=max_gap_sec,
+            max_chars=max_chars,
         )
         results.append({"title": movie["title"], "success": result is not None})
         print()
@@ -453,7 +462,15 @@ Examples:
     args = parser.parse_args()
 
     if args.batch:
-        asyncio.run(batch_process(args.batch, force_rebuild=args.force))
+        asyncio.run(
+            batch_process(
+                args.batch,
+                force_rebuild=args.force,
+                output_dir=args.output_dir,
+                max_gap_sec=args.max_gap,
+                max_chars=args.max_chars,
+            )
+        )
     elif args.title and args.script and args.subtitles:
         asyncio.run(
             process_movie(
