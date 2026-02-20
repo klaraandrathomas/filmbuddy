@@ -34,6 +34,7 @@ import asyncio
 import argparse
 import sys
 import os
+import glob as globmod
 import hashlib
 import json
 import time
@@ -61,29 +62,42 @@ def compute_file_hash(filepath: str) -> str:
 
 
 def check_incremental_update(
-    movie_id: str, script_hash: str, subtitle_hash: str, cache_dir: str = "corpus"
+    title_slug: str,
+    movie_id: str,
+    script_hash: str,
+    subtitle_hash: str,
+    cache_dir: str = "corpus",
 ) -> bool:
     """Check if corpus needs rebuilding based on file hashes.
 
+    Searches for cache files matching both the exact movie_id and any
+    file matching the title slug (e.g. .forrest_gump_*_cache.json) so
+    that a TMDB-resolved year cache is found even when --year is omitted.
+
     Returns True if rebuild needed, False if cached version is valid.
     """
-    cache_file = os.path.join(cache_dir, f".{movie_id}_cache.json")
+    candidates = [os.path.join(cache_dir, f".{movie_id}_cache.json")]
+    candidates += sorted(
+        globmod.glob(os.path.join(cache_dir, f".{title_slug}_*_cache.json"))
+    )
 
-    if not os.path.exists(cache_file):
-        return True
-
-    try:
-        with open(cache_file, "r") as f:
-            cache = json.load(f)
-
-        if (
-            cache.get("script_hash") == script_hash
-            and cache.get("subtitle_hash") == subtitle_hash
-        ):
-            print(f"Cache valid for {movie_id}, skipping rebuild")
-            return False
-    except Exception:
-        pass
+    for cache_file in candidates:
+        if not os.path.exists(cache_file):
+            continue
+        try:
+            with open(cache_file, "r") as f:
+                cache = json.load(f)
+            if (
+                cache.get("script_hash") == script_hash
+                and cache.get("subtitle_hash") == subtitle_hash
+            ):
+                cached_id = os.path.basename(cache_file)[1:].replace(
+                    "_cache.json", ""
+                )
+                print(f"Cache valid for {cached_id}, skipping rebuild")
+                return False
+        except Exception:
+            continue
 
     return True
 
@@ -261,7 +275,7 @@ async def process_movie(
     film_id = title_slug
 
     if not force_rebuild and not check_incremental_update(
-        movie_id, script_hash, subtitle_hash, output_dir
+        title_slug, movie_id, script_hash, subtitle_hash, output_dir
     ):
         print("Corpus is up-to-date, skipping rebuild.")
         print("Use --force to rebuild anyway.")
@@ -316,7 +330,7 @@ async def process_movie(
 
         metrics = validate_corpus_quality(corpus)
 
-        save_cache(movie_id, script_hash, subtitle_hash, output_dir)
+        save_cache(corpus["movie_id"], script_hash, subtitle_hash, output_dir)
 
         print("\nStoring in vector database...")
         vector_store = MovieVectorStore(persist_directory="./chroma_db")
