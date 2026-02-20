@@ -327,8 +327,7 @@ async def process_movie(
         print()
         print("Make sure your .env file has:")
         print("  - TMDB_API_KEY")
-        print("  - AZURE_OPENAI_API_KEY")
-        print("  - AZURE_OPENAI_ENDPOINT")
+        print("  - OPENAI_API_KEY  (or AZURE_OPENAI_API_KEY + AZURE_OPENAI_ENDPOINT)")
         return None
 
     try:

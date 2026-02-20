@@ -27,7 +27,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 
 from preprocessing.character_extractor import CharacterExtractor
 
-# Use existing CharacterExtractor which has Azure OpenAI setup
+# Use existing CharacterExtractor (auto-detects Azure or standard OpenAI)
 extractor = CharacterExtractor()
 
 

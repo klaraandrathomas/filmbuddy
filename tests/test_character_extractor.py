@@ -97,7 +97,7 @@ async def test_character_extractor():
         extractor = CharacterExtractor()
         print(f"✓ CharacterExtractor initialized")
         print(f"  Deployment: {extractor.deployment_name}")
-        print(f"  Endpoint: {extractor.endpoint}")
+        print(f"  Endpoint: {extractor.endpoint or '(standard OpenAI)'}")
     except ValueError as e:
         print(f"✗ Failed to initialize: {e}")
         print("\nPlease set AZURE_OPENAI_API_KEY and AZURE_OPENAI_ENDPOINT environment variables.")
