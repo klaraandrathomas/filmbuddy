@@ -316,7 +316,15 @@ async def process_movie(
 
         metrics = validate_corpus_quality(corpus)
 
-        save_cache(movie_id, script_hash, subtitle_hash, output_dir)
+        # Use the corpus builder's movie_id for cache (it may differ from
+        # the locally computed one when --year is omitted and TMDB resolves
+        # the actual release year).
+        actual_movie_id = corpus['movie_id']
+        save_cache(actual_movie_id, script_hash, subtitle_hash, output_dir)
+        if actual_movie_id != movie_id:
+            # Also save under the local key so the pre-build cache check
+            # (which can only use the locally computed ID) will hit next time.
+            save_cache(movie_id, script_hash, subtitle_hash, output_dir)
 
         print("\nStoring in vector database...")
         vector_store = MovieVectorStore(persist_directory="./chroma_db")
