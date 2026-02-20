@@ -76,10 +76,11 @@ def check_incremental_update(
 
     Returns True if rebuild needed, False if cached version is valid.
     """
-    candidates = [os.path.join(cache_dir, f".{movie_id}_cache.json")]
-    candidates += sorted(
+    exact = os.path.join(cache_dir, f".{movie_id}_cache.json")
+    glob_matches = sorted(
         globmod.glob(os.path.join(cache_dir, f".{title_slug}_*_cache.json"))
     )
+    candidates = list(dict.fromkeys([exact] + glob_matches))
 
     for cache_file in candidates:
         if not os.path.exists(cache_file):
