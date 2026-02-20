@@ -83,8 +83,8 @@ def check_incremental_update(
         ):
             print(f"Cache valid for {movie_id}, skipping rebuild")
             return False
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"Warning: could not read cache file {cache_file}: {e}")
 
     return True
 
